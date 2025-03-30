@@ -1,7 +1,7 @@
 import { prisma } from "../config/prismaClient.js";
 import { STATUS_CODES } from "../constants/statusCodeConstants.js";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages.js";
-import { getAgencyUserUccListService } from "../services/uccService.js";
+import { getAgencyUserUccListService } from "../services/rfiCreationService.js";
 import { errorResponse } from "../helpers/errorHelper.js";
 
 
