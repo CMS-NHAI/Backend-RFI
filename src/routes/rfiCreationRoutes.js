@@ -1,8 +1,8 @@
 import express from "express";
-//import { getUcc } from "../controllers/uccController.js";
 import validate from "../middlewares/validate.js";
+import { getRfiCategory } from "../controllers/rfiCreationController.js";
 const router = express.Router()
 
-//router.get('/list', validate(userValidationSchema), getUcc);
+router.get('/rfiInspectionCategoryList', getRfiCategory);
 
 export default router;
