@@ -1,11 +1,9 @@
-export default class AppError extends Error {
-    status;
-    isOperational;
-    constructor( statusCode = 500, message) {
-      super(message);
-      this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
-      this.isOperational = true;
-  
-      Error.captureStackTrace(this, this.constructor);
-    }
-  }
+class APIError extends Error {
+	constructor(status, message, isOperational = true) {
+		super(message);
+		this.message = message;
+		this.status = status;
+	}
+}
+
+export default APIError;
