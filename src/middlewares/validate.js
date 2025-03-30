@@ -1,36 +1,49 @@
-// import Joi from 'joi';
-// import _ from 'lodash';
+import jwt from 'jsonwebtoken'
+import { STATUS_CODES } from '../constants/statusCodeConstants.js'
+import dotenv from 'dotenv';
+dotenv.config();
 
-// const validate = (schema) => (req, res, next) => {
-// 	const validSchema = _.pick(schema, ['params', 'query', 'body']);
-// 	const object = _.pick(req, Object.keys(validSchema));
-// 	const { error, value } = Joi.compile(validSchema)
-// 		.prefs({ errors: { label: 'path', wrap: { label: false } }, abortEarly: false })
-// 		.validate(object);
-// 	if (error) {
-// 		return next(error);
-// 	}
-// 	Object.assign(req, value);
-// 	return next();
-// };
-
-import Joi from 'joi';
-
-// Custom Joi validation middleware
 export const validate = (schema) => {
   return (req, res, next) => {
-    // Validate request body by default, you can modify for query or params validation as well
     const { error } = schema.validate(req.body);
 
     if (error) {
       return res.status(400).json({
         success: false,
-        message: error.details[0].message, // Send the validation error message
+        message: error.details[0].message, 
       });
     }
 
-    next(); // If valid, proceed to the next middleware/controller
+    next(); 
   };
 };
 
-export default validate;
+
+
+// Middleware to check JWT token
+export  const validateToken = (req, res, next) => {
+  const token =
+    req.headers.authorization && req.headers.authorization.split(' ')[1] // Extract the token from Authorization header
+
+  if (!token) {
+    return res.status(STATUS_CODES.UNAUTHORIZED).json({
+      success: false,
+      message: 'Authorization token is required.',
+    })
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY)
+
+    req.user = decoded
+
+    next() 
+  } catch (err) {
+    return res.status(STATUS_CODES.UNAUTHORIZED).json({
+      success: false,
+      message: 'Invalid or expired token.',
+    })
+  }
+}
+
+
