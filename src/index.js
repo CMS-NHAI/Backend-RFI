@@ -13,7 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 app.use(cors());
 
-app.use("/api", centralizedRoutes);
+app.use("/backend/rfi", centralizedRoutes);
 
 app.use(express.json());
 
