@@ -59,7 +59,7 @@ export const getRfiCategory = async (req, res) => {
         success: true,
         status: STATUS_CODES.OK,
         message: 'Category records retrieved successfully',
-        data: { states }
+        data: { category }
       });
   
     } catch (error) {
