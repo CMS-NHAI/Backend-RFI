@@ -1,6 +1,7 @@
 export const RESPONSE_MESSAGES = {
   
     ERROR: {
+      Fail:false,
       USER_ID_MISSING: 'UserId is required.',
       MISSING_FILTER: 'Day is required.',
       MISSING_TAB_VALUE: 'Please select tab value as me or myteam',
@@ -19,7 +20,17 @@ export const RESPONSE_MESSAGES = {
       UNABLE_TO_FETCH_UCC: "Unable to fetch ucc_ids. Please try again later.",
       INVALID_LAT_LNG: "Invalid latitude or longitude provided",
       UNABLE_TO_FETCH_NEAREST_UCC: "Unable to fetch nearest UCC. Please try again later.",
-      REQUEST_PROCESSING_ERROR: "Error Occured while processing request"
+      REQUEST_PROCESSING_ERROR: "Error Occured while processing request",
+      INVALIDE_TOKEN: "Token is missing or invalid.",
+      INVALID_USER_ID: "Invalid user id.",
+      ROLE_NOT_ALLOWED: "Forbidden: Insufficient roles.",
+      RESOURCE_NOT_FOUND: "Forbidden: No matching resources found.",
+      INSUFFICIENT_PERMISSION: "You have insufficient permissions for access.",
+      INVALIDE_ROLE: "Invalid roles. Please provide an array of roles.",
+      INVALIDE_RESOURCE: "Invalid resources. Please provide an array of resources.",
+      INVALIDE_PERMISSION: "Invalid permissions. Please provide an array of permissions.",
+      USER_DETAIL_NOT_FOUND : "User details not found.",
+      
     },
     SUCCESS: {
         status: true,
