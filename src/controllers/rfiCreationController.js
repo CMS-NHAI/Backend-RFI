@@ -1,3 +1,9 @@
+/**
+ * Author: Bhawesh Chandra Bhanu
+ * Date: 2025-04-01
+ * Description: Controller for Request For Inspection RFI-Services System
+ * License: MIT
+ */
 import { prisma } from "../config/prismaClient.js";
 import { STATUS_CODES } from "../constants/statusCodeConstants.js";
 import { RESPONSE_MESSAGES } from "../constants/responseMessages.js";
@@ -8,7 +14,7 @@ import { errorResponse } from "../helpers/errorHelper.js";
 /**
  * Method : GET
  * Params : @token
- * Description : @uccListViaUser is use to get ucc list as per the user.
+ * Description : @agencyUserUccList is use to get all UCC list assigned or mapped to the Agency user.
 */
 
 export const agencyUserUccList = async (req, res) => {
@@ -29,10 +35,12 @@ export const agencyUserUccList = async (req, res) => {
   }
 }
 
-
-
-
-
+/**
+ * Method : GET
+ * Params : @token
+ * Description : @getRfiCategory is use to get all Category for Inspection Detail in RFI Inspection 
+ *               Creation.
+*/
 export const getRfiCategory = async (req, res) => {
     try {
       const category = await prisma.rfi_category.findMany({
@@ -71,3 +79,40 @@ export const getRfiCategory = async (req, res) => {
       });
     }
   };
+
+/**
+ * Method : GET
+ * Params : @token
+ * Description : @getRfiCatSubCattemLayer is use to get all Category for Inspection Detail in RFI Inspection 
+ *               Creation.
+*/
+
+export const getRfiCatSubCattemLayer = async (req, res) => {
+  try {
+        const inspectionDetails = await getInspectionDetails(req, res);
+        res.status(STATUS_CODES.OK).json({
+            success: true,
+            data: inspectionDetails
+        });
+
+  }catch(err){
+    res.status(err.status || STATUS_CODES.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: err.message
+  });
+
+  }
+
+}
+
+
+
+
+export const getChainageDetails = async (req, res) => {
+  try {
+
+  }catch(error){
+
+  }
+
+}
