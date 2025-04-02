@@ -56,3 +56,36 @@ export const getAgencyUserUccListService = async (req, res) => {
     return uccList;
 
 };
+
+
+export const getInspectionDetails = async (req, res) => {
+    const categoryId = req.query?.cat;
+    const subCategoryId = req.query?.subcat;
+    const itemId = req.query?.item;
+    const layerId = req.query?.layer;
+
+    if (!categoryId || !subCategoryId || !itemId || !layerId) {
+        const categoryQueryResult = await prisma.rfi_category.findMany({
+            select: {
+              id: true,
+              category_name: true
+            },
+            orderBy: {
+                category_name: 'asc'
+            }
+          });
+          return res.status(STATUS_CODES.OK).json({
+            success: true,
+            status: STATUS_CODES.OK,
+            message: 'Category records retrieved successfully',
+            data: { category }
+          });
+    }
+
+    if (categoryId && subCategoryId){
+        
+    }
+
+
+
+}
