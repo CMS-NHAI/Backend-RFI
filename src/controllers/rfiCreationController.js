@@ -192,8 +192,7 @@ export const getRfiSubCategory = async (req, res) => {
 export const getRfiItem = async (req, res) => {
   const categoryId = req.query?.cat;
   const subCategoryId = req.query?.subCat;
-  console.log("Catogry>>>>>>", categoryId)
-  console.log("SUBCatogry>>>>>>", subCategoryId)
+  
   const results = await prisma.rfi_catsubcat_itemlayer_association.findMany({
     where: {
       category_id: Number(categoryId),
@@ -231,6 +230,42 @@ export const getRfiItem = async (req, res) => {
 
 }
 
+export const getRfiLayer = async (req, res) => {
+  const categoryId = req.query?.cat;
+  const subCategoryId = req.query?.subCat;
+  const subItemId = req.query?.item;
+
+  const result = await prisma.rfi_catsubcat_itemlayer_association.findMany({
+    where: {
+      category_id: 3,
+      subcategory_id: 50,
+      item_id: 1
+    },
+    select: {
+      layer_id: true,
+      rfi_layer: {
+        select: {
+          layer_name: true,
+          id: true
+        }
+      }
+    },
+    distinct: ['layer_id'],
+    orderBy: {
+      rfi_layer: {
+        layer_name: 'asc'
+      }
+    }
+  });
+  return res.status(STATUS_CODES.OK).json({
+    success: true,
+    status: STATUS_CODES.OK,
+    message: 'Inspection Layer records retrieved successfully',
+    data: {result}
+  });
+
+}
+  
 
 export const getChainageDetails = async (req, res) => {
   try {
