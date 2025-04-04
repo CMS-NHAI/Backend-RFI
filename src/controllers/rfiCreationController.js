@@ -192,10 +192,12 @@ export const getRfiSubCategory = async (req, res) => {
 export const getRfiItem = async (req, res) => {
   const categoryId = req.query?.cat;
   const subCategoryId = req.query?.subCat;
+  console.log("Catogry>>>>>>", categoryId)
+  console.log("SUBCatogry>>>>>>", subCategoryId)
   const results = await prisma.rfi_catsubcat_itemlayer_association.findMany({
     where: {
-      category_id: categoryId,
-      subcategory_id: subCategoryId,
+      category_id: Number(categoryId),
+      subcategory_id: Number(subCategoryId),
     },
     select: {
       item: {
@@ -216,7 +218,7 @@ export const getRfiItem = async (req, res) => {
   return res.status(STATUS_CODES.OK).json({
     success: true,
     status: STATUS_CODES.OK,
-    message: 'Subcategory records retrieved successfully',
+    message: 'Inspection Item records retrieved successfully',
     data: {results}
   });
 
