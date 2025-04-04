@@ -127,10 +127,22 @@ export const getRfiSubCategory = async (req, res) => {
     },
   });
 
-  const flatSubcategories = subcategories.map((sub) => ({
+ /* const flatSubcategories = subcategories.map((sub) => ({
     subcategory_id: sub.subcategory_id,
     subcategory_name: sub.rfi_subcategories?.subcategory_name,
-  }));
+  })); */
+
+  const flatSubcategories = Array.from(
+    new Map(
+      subcategories.map((sub) => [
+        sub.subcategory_id, // key
+        {
+          subcategory_id: sub.subcategory_id,
+          subcategory_name: sub.rfi_subcategories?.subcategory_name,
+        }, // value
+      ])
+    ).values()
+  );
 
   return res.status(STATUS_CODES.OK).json({
     success: true,
