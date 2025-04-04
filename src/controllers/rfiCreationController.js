@@ -194,8 +194,8 @@ export const getRfiItem = async (req, res) => {
   const subCategoryId = req.query?.subCat;
   const results = await prisma.rfi_catsubcat_itemlayer_association.findMany({
     where: {
-      category_id: categoryId,
-      subcategory_id: subCategoryId,
+      category_id: Number(categoryId),
+      subcategory_id: Number(subCategoryId),
     },
     select: {
       item: {
