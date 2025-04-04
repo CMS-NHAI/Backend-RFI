@@ -107,6 +107,29 @@ export const getRfiCatSubCattemLayer = async (req, res) => {
 
 
 
+export const getRfiSubCategory = async (req, res) => {
+
+  const categoryId = req.query?.cat;
+
+  const subcategories = await prisma.rfi_catsubcat_itemlayer_association.findMany({
+    where: {
+      category_id: categoryId,
+    },
+    select: {
+      subcategory_id: true,
+      rfi_subcategories: {
+        select: {
+          subcategory_name: true,
+        },
+      },
+    },
+  });
+
+
+}
+
+
+
 
 export const getChainageDetails = async (req, res) => {
   try {

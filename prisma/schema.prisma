@@ -6,8 +6,8 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [postgis(version: "3.5.0"), uuid_ossp(map: "uuid-ossp", schema: "public")]
-  schemas    = ["common", "public", "tenant_nhai"]
+  extensions = [postgis(version: "3.5.2"), uuid_ossp(map: "uuid-ossp", schema: "tenant_nhai")]
+  schemas    = ["common", "public", "tenant_nhai", "nhai_gis"]
 }
 
 model mastercodes {
@@ -94,24 +94,6 @@ model user_master_notuse {
   @@schema("public")
 }
 
-model access_logs {
-  id                String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  user_id           Int?
-  resource_id       String?                  @db.Uuid
-  action            String?                  @db.VarChar(50)
-  result            Boolean?
-  request_timestamp DateTime?                @default(now()) @db.Timestamptz(6)
-  request_context   Json?
-  device_info       Json?
-  location          Unsupported("geometry")?
-  created_at        DateTime?                @default(now()) @db.Timestamp(6)
-  created_by        String?                  @db.VarChar(100)
-  resources         resources?               @relation(fields: [resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  user_master       user_master?             @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("tenant_nhai")
-}
-
 model actions {
   action_id   Int       @id @default(autoincrement())
   action_name String    @unique @db.VarChar(50)
@@ -134,112 +116,6 @@ model address_master {
   last_updated_date                                       DateTime?                      @db.Timestamp(6)
   user_master_address_master_created_byTouser_master      user_master?                   @relation("address_master_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
   user_master_address_master_last_updated_byTouser_master user_master?                   @relation("address_master_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  office_master                                           office_master[]
-
-  @@schema("tenant_nhai")
-}
-
-model attendance_analytics {
-  analytics_id                                             Int         @id @default(autoincrement())
-  user_id                                                  Int
-  date_range                                               String      @db.VarChar(20)
-  total_days_present                                       Int
-  total_days_absent                                        Int
-  avg_work_hours                                           Decimal?    @db.Decimal(5, 2)
-  punctuality_rate                                         Decimal?    @db.Decimal(5, 2)
-  overtime_hours                                           Decimal?    @db.Decimal(5, 2)
-  compliance_rate                                          Decimal?    @db.Decimal(5, 2)
-  is_active                                                Boolean     @default(true)
-  created_by                                               Int
-  created_at                                               DateTime    @default(now()) @db.Timestamp(6)
-  user_master_attendance_analytics_created_byTouser_master user_master @relation("attendance_analytics_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_attendance_analytics_user_idTouser_master    user_master @relation("attendance_analytics_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("tenant_nhai")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model attendance_tracking {
-  attendance_id                                           Int                  @id @default(autoincrement())
-  user_id                                                 Int
-  attendance_date                                         DateTime             @db.Date
-  status                                                  String               @db.VarChar(10)
-  attendance_count                                        Int?                 @default(0)
-  region                                                  String?              @db.VarChar(50)
-  org_id                                                  Int?
-  ucc_id                                                  Int?
-  is_active                                               Boolean              @default(true)
-  created_by                                              Int
-  created_at                                              DateTime             @default(now()) @db.Timestamp(6)
-  updated_by                                              Int?
-  updated_at                                              DateTime?            @db.Timestamp(6)
-  user_master_attendance_tracking_created_byTouser_master user_master          @relation("attendance_tracking_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  organization_master                                     organization_master? @relation(fields: [org_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction)
-  ucc_master                                              ucc_master?          @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_attendance_tracking_updated_byTouser_master user_master?         @relation("attendance_tracking_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_attendance_tracking_user_idTouser_master    user_master          @relation("attendance_tracking_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("tenant_nhai")
-}
-
-model authentication {
-  auth_id          Int                 @id @default(autoincrement())
-  user_id          Int
-  login_method     public_login_method
-  login_status     public_login_status
-  login_time       DateTime            @default(now()) @db.Timestamp(6)
-  ip_address       String              @db.VarChar(45)
-  device_type      String              @db.VarChar(50)
-  retry_count      Int                 @default(0)
-  session_duration DateTime?           @db.Time(6)
-  created_at       DateTime            @default(now()) @db.Timestamptz(6)
-  created_by       String?             @db.VarChar(100)
-  updated_at       DateTime            @default(now()) @db.Timestamptz(6)
-  updated_by       String?             @db.VarChar(100)
-  user_master      user_master         @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@schema("tenant_nhai")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model calender_master {
-  calendar_id                                         Int          @id @default(autoincrement())
-  calendar_date                                       DateTime     @db.Date
-  is_working_day                                      Boolean      @default(true)
-  day_of_week                                         String       @db.VarChar(10)
-  is_holiday                                          Boolean?
-  holiday_name                                        String?      @db.VarChar(50)
-  region                                              String       @db.VarChar
-  created_by                                          Int
-  created_at                                          DateTime     @default(now()) @db.Timestamp(6)
-  updated_by                                          Int?
-  updated_at                                          DateTime?    @db.Timestamp(6)
-  user_master_calender_master_created_byTouser_master user_master  @relation("calender_master_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_calender_master_updated_byTouser_master user_master? @relation("calender_master_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("tenant_nhai")
-}
-
-model check_in_compliance {
-  compliance_id                                           Int                   @id @default(autoincrement())
-  user_id                                                 Int
-  ucc_id                                                  Int
-  check_in_time                                           DateTime              @db.Timestamp(6)
-  check_out_time                                          DateTime              @db.Timestamp(6)
-  late_check_in                                           Boolean?              @default(false)
-  device_type                                             String?               @db.VarChar(50)
-  ip_address                                              String?               @db.VarChar(50)
-  gps_location                                            Unsupported("point")?
-  on_site_indicator                                       Boolean?              @default(false)
-  is_active                                               Boolean               @default(true)
-  created_by                                              Int
-  created_at                                              DateTime              @default(now()) @db.Timestamp(6)
-  updated_by                                              Int?
-  updated_at                                              DateTime?             @db.Timestamp(6)
-  user_master_check_in_compliance_created_byTouser_master user_master           @relation("check_in_compliance_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  ucc_master                                              ucc_master            @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_check_in_compliance_updated_byTouser_master user_master?          @relation("check_in_compliance_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_check_in_compliance_user_idTouser_master    user_master           @relation("check_in_compliance_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("tenant_nhai")
 }
@@ -269,35 +145,6 @@ model designation_master {
   @@schema("tenant_nhai")
 }
 
-model division_master {
-  division_id                                              Int                  @id @default(autoincrement())
-  division_name                                            String               @db.VarChar(255)
-  division_description                                     String?
-  parent_division_id                                       Int?
-  org_id                                                   Int?
-  office_id                                                Int?
-  start_date                                               DateTime             @db.Date
-  end_date                                                 DateTime?            @db.Date
-  active_flag                                              Boolean              @default(true)
-  budget                                                   Decimal?             @default(0) @db.Decimal(15, 2)
-  number_of_employees                                      Int?                 @default(0)
-  division_type                                            String?              @db.VarChar(100)
-  functional_area                                          String?              @db.VarChar(100)
-  division_details                                         Json?                @db.Json
-  created_by                                               Int
-  created_at                                               DateTime             @default(now()) @db.Timestamp(6)
-  last_updated_by                                          Int?
-  last_updated_at                                          DateTime?            @db.Timestamp(6)
-  user_master_division_master_created_byTouser_master      user_master          @relation("division_master_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_division_master_last_updated_byTouser_master user_master?         @relation("division_master_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  office_master                                            office_master?       @relation(fields: [office_id], references: [office_id], onDelete: NoAction, onUpdate: NoAction)
-  organization_master                                      organization_master? @relation(fields: [org_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction)
-  division_master                                          division_master?     @relation("division_masterTodivision_master", fields: [parent_division_id], references: [division_id], onDelete: NoAction, onUpdate: NoAction)
-  other_division_master                                    division_master[]    @relation("division_masterTodivision_master")
-
-  @@schema("tenant_nhai")
-}
-
 model event_log {
   event_id        Int          @id @default(autoincrement())
   event_type      String?      @db.VarChar(50)
@@ -316,146 +163,47 @@ model event_log {
   @@schema("tenant_nhai")
 }
 
-model event_log_history {
-  event_history_id Int          @id @default(autoincrement())
-  event_id         BigInt?
-  event_type       String?      @db.VarChar(50)
-  event_timestamp  DateTime?    @db.Timestamp(6)
-  user_id          Int?
-  ip_address       String?      @db.VarChar(45)
-  device_info      String?      @db.VarChar(255)
-  event_status     String?      @db.VarChar(20)
-  event_details    Json?        @db.Json
-  created_at       DateTime?    @db.Timestamp(6)
-  created_by       String?      @db.VarChar(100)
-  updated_at       DateTime?    @db.Timestamp(6)
-  updated_by       String?      @db.VarChar(100)
-  user_master      user_master? @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("tenant_nhai")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model leave_management {
-  leave_id                                              Int          @id @default(autoincrement())
-  user_id                                               Int
-  start_date                                            DateTime     @db.Date
-  end_date                                              DateTime     @db.Date
-  leave_type                                            String       @db.VarChar(10)
-  reason                                                String?
-  status                                                String       @default("Pending") @db.VarChar(10)
-  approver_id                                           Int?
-  is_active                                             Boolean      @default(true)
-  created_by                                            Int
-  created_at                                            DateTime     @default(now()) @db.Timestamp(6)
-  updated_by                                            Int?
-  updated_at                                            DateTime?    @db.Timestamp(6)
-  user_master_leave_management_approver_idTouser_master user_master? @relation("leave_management_approver_idTouser_master", fields: [approver_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_leave_management_created_byTouser_master  user_master  @relation("leave_management_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_leave_management_updated_byTouser_master  user_master? @relation("leave_management_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_leave_management_user_idTouser_master     user_master  @relation("leave_management_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("tenant_nhai")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model leave_tracking_compliance {
-  leave_id                                                      Int          @id @default(autoincrement())
-  user_id                                                       Int
-  ucc_id                                                        Int?
-  leave_type                                                    String       @db.VarChar(10)
-  leave_start_date                                              DateTime     @db.Date
-  leave_end_date                                                DateTime     @db.Date
-  leave_duration                                                Int
-  leave_status                                                  String       @db.VarChar(10)
-  compliance_status                                             Boolean?     @default(true)
-  non_compliance_reason                                         String?      @db.VarChar(255)
-  is_active                                                     Boolean      @default(true)
-  created_by                                                    Int
-  created_at                                                    DateTime     @default(now()) @db.Timestamp(6)
-  updated_by                                                    Int?
-  updated_at                                                    DateTime?    @db.Timestamp(6)
-  user_master_leave_tracking_compliance_created_byTouser_master user_master  @relation("leave_tracking_compliance_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  ucc_master                                                    ucc_master?  @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_leave_tracking_compliance_updated_byTouser_master user_master? @relation("leave_tracking_compliance_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_leave_tracking_compliance_user_idTouser_master    user_master  @relation("leave_tracking_compliance_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@schema("tenant_nhai")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model office_master {
-  office_id                                              Int                   @id @default(autoincrement())
-  office_name                                            String                @unique @db.VarChar
-  parent_office_id                                       Int?
-  office_type                                            String                @db.VarChar
-  org_id                                                 Int?
-  address_id                                             Int?
-  address_line1                                          String
-  address_line2                                          String?
-  city                                                   String?               @db.VarChar
-  state                                                  String?               @db.VarChar
-  postal_code                                            String                @db.VarChar
-  contact_number                                         String?               @db.VarChar
-  email                                                  String?               @db.VarChar
-  is_active                                              Boolean?              @default(true)
-  office_details                                         Json?                 @db.Json
-  created_by                                             Int
-  created_at                                             DateTime              @default(now()) @db.Timestamp(6)
-  last_updated_by                                        Int?
-  last_updated_at                                        DateTime?             @db.Timestamp(6)
-  region_id                                              Int?                  @db.SmallInt
-  state_id                                               Int?                  @db.SmallInt
-  division_master                                        division_master[]
-  address_master                                         address_master?       @relation(fields: [address_id], references: [address_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_office_master_created_byTouser_master      user_master           @relation("office_master_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_office_master_last_updated_byTouser_master user_master?          @relation("office_master_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  organization_master                                    organization_master?  @relation(fields: [org_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction)
-  office_master                                          office_master?        @relation("office_masterTooffice_master", fields: [parent_office_id], references: [office_id], onDelete: NoAction, onUpdate: NoAction)
-  other_office_master                                    office_master[]       @relation("office_masterTooffice_master")
-  user_office_mapping                                    user_office_mapping[]
-
-  @@schema("tenant_nhai")
-}
-
 model organization_master {
-  org_id                    Int                       @id @default(autoincrement())
-  name                      String                    @db.VarChar(255)
-  org_type                  String                    @db.VarChar(50)
-  contractor_agency_type    String?                   @db.VarChar(50)
-  date_of_incorporation     DateTime?                 @db.Date
-  selection_method          String?                   @db.VarChar(50)
-  empanelment_start_date    DateTime?                 @db.Date
-  empanelment_end_date      DateTime?                 @db.Date
-  organization_data         Json?                     @db.Json
-  spoc_details              Json?                     @db.Json
-  tin                       String?                   @db.VarChar(20)
-  contact_number            String?                   @db.VarChar(20)
-  gst_number                String?                   @db.VarChar(20)
-  pan                       String?                   @db.VarChar(20)
-  contact_email             String?                   @db.VarChar(255)
-  invite_status             String?                   @default("PENDING") @db.VarChar(20)
-  is_active                 Boolean?                  @default(true)
-  created_by                Int?
-  created_date              DateTime?                 @default(now()) @db.Timestamp(6)
-  last_updated_by           Int?
-  last_updated_date         DateTime?                 @db.Timestamp(6)
-  deletedAt                 DateTime?                 @db.Timestamp(6)
-  is_entity_locker_verified Boolean?
-  logo_name                 String?                   @db.Char
-  logo_path                 String?                   @db.Char
-  CIN                       String?                   @db.VarChar(25)
-  entity_data               Json?                     @db.Json
-  password                  String?                   @db.VarChar(255)
-  refresh_token             String?
-  password_reset_id         String?                   @db.VarChar
-  password_reset_expiry     DateTime?                 @db.Timestamp(6)
-  attendance_tracking       attendance_tracking[]
-  designation_master        designation_master[]
-  division_master           division_master[]
-  office_master             office_master[]
-  registration_invitation   registration_invitation[]
-  user_master               user_master[]
+  org_id                      Int                           @id @default(autoincrement())
+  name                        String                        @db.VarChar(255)
+  org_type                    String                        @db.VarChar(50)
+  contractor_agency_type      String?                       @db.VarChar(50)
+  date_of_incorporation       DateTime?                     @db.Date
+  selection_method            String?                       @db.VarChar(50)
+  empanelment_start_date      DateTime?                     @db.Date
+  empanelment_end_date        DateTime?                     @db.Date
+  organization_data           Json?                         @db.Json
+  spoc_details                Json?                         @db.Json
+  tin                         String?                       @db.VarChar(20)
+  contact_number              String?                       @db.VarChar(20)
+  gst_number                  String?                       @db.VarChar(20)
+  pan                         String?                       @db.VarChar(20)
+  contact_email               String?                       @db.VarChar(255)
+  invite_status               String?                       @default("PENDING") @db.VarChar(20)
+  is_active                   Boolean?                      @default(true)
+  created_by                  Int?
+  created_date                DateTime?                     @default(now()) @db.Timestamp(6)
+  last_updated_by             Int?
+  last_updated_date           DateTime?                     @db.Timestamp(6)
+  status                      String?                       @db.VarChar
+  is_entity_locker_verified   Boolean?                      @default(false)
+  logo_path                   String?
+  CIN                         String?                       @db.VarChar(21)
+  entity_data                 Json?                         @db.Json
+  password                    String?                       @db.VarChar(255)
+  refresh_token               String?
+  password_reset_id           String?                       @db.VarChar
+  password_reset_expiry       DateTime?                     @db.Timestamptz(6)
+  designation_master          designation_master[]
+  joint_venture_organisations joint_venture_organisations[]
+  or_divisions                or_divisions[]
+  or_office_master            or_office_master[]
+  or_organization_address     or_organization_address[]
+  or_organization_spoc        or_organization_spoc[]        @ignore
+  rm_atr_management           rm_atr_management[]
+  roles                       roles[]
+  ucc_agency_mapping          ucc_agency_mapping[]
+  user_master                 user_master[]
 
   @@schema("tenant_nhai")
 }
@@ -473,6 +221,7 @@ model otp_verification {
   created_at              DateTime?   @default(now()) @db.Timestamp(6)
   updated_by              Int?
   updated_at              DateTime?   @default(now()) @db.Timestamp(6)
+  otp_hash                String?     @db.VarChar(256)
   user_master             user_master @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
 
   @@schema("tenant_nhai")
@@ -480,205 +229,196 @@ model otp_verification {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model policies {
-  id                    String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  policy_name           String                   @unique @db.VarChar(255)
+  id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  policy_name           String    @unique @db.VarChar(255)
   description           String?
   subject_condition     Json?
   resource_condition    Json?
-  spatial_condition     Unsupported("geometry")?
   action_condition      Json?
   environment_condition Json?
   temporal_condition    Json?
-  effect                String                   @db.VarChar(10)
-  priority              Int?                     @default(0)
-  created_at            DateTime?                @default(now()) @db.Timestamp(6)
-  created_by            String?                  @db.VarChar(100)
+  effect                String    @db.VarChar(10)
+  priority              Int?      @default(0)
+  created_at            DateTime? @default(now()) @db.Timestamp(6)
+  created_by            String?   @db.VarChar(100)
 
   @@schema("tenant_nhai")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model registration_invitation {
-  invitation_id                                                    Int                 @id @default(autoincrement())
-  org_id                                                           Int
-  user_id                                                          Int
+  invitation_id                                                    Int          @id @default(autoincrement())
+  org_id                                                           Int?
+  user_id                                                          Int?
   invitation_link                                                  String
   short_url                                                        String?
-  invitation_status                                                String              @db.VarChar(50)
+  invitation_status                                                String       @db.VarChar(50)
   invite_message                                                   String?
-  invite_to                                                        String?             @db.VarChar
-  invite_cc                                                        String?             @db.VarChar
-  invite_bcc                                                       String?             @db.VarChar
-  invite_details                                                   Json?               @db.Json
-  invite_sent_on                                                   DateTime?           @db.Timestamp(6)
-  invite_attachment                                                String?             @db.VarChar
-  expiry_date                                                      DateTime?           @db.Timestamp(6)
+  invite_to                                                        String?      @db.VarChar
+  invite_cc                                                        String?      @db.VarChar
+  invite_bcc                                                       String?      @db.VarChar
+  invite_details                                                   Json?        @db.Json
+  invite_sent_on                                                   DateTime?    @db.Timestamp(6)
+  invite_attachment                                                String?      @db.VarChar
+  expiry_date                                                      DateTime?    @db.Timestamp(6)
   created_by                                                       Int
-  created_date                                                     DateTime            @default(now()) @db.Timestamp(6)
+  created_date                                                     DateTime     @default(now()) @db.Timestamp(6)
   last_updated_by                                                  Int?
-  last_updated_date                                                DateTime?           @db.Timestamp(6)
-  is_active                                                        Boolean             @default(true)
-  unique_invitation_id                                             String?             @db.VarChar(250)
-  user_master_registration_invitation_last_updated_byTouser_master user_master?        @relation("registration_invitation_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  organization_master                                              organization_master @relation(fields: [org_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_registration_invitation_user_idTouser_master         user_master         @relation("registration_invitation_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  last_updated_date                                                DateTime?    @db.Timestamp(6)
+  is_active                                                        Boolean      @default(true)
+  unique_invitation_id                                             String?      @db.VarChar
+  invitation_type                                                  String?      @db.VarChar
+  invite_accepted_on                                               DateTime?    @db.Timestamp(6)
+  user_master_registration_invitation_created_byTouser_master      user_master  @relation("registration_invitation_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_registration_invitation_last_updated_byTouser_master user_master? @relation("registration_invitation_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_registration_invitation_user_idTouser_master         user_master? @relation("registration_invitation_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("tenant_nhai")
 }
 
 model resource_attributes {
-  id              String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  resource_id     String?                  @db.Uuid
-  attribute_name  String                   @db.VarChar(100)
+  id              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  resource_id     String?    @db.Uuid
+  attribute_name  String     @db.VarChar(100)
   attribute_value Json
-  geometry        Unsupported("geometry")?
-  valid_from      DateTime?                @db.Timestamptz(6)
-  valid_to        DateTime?                @db.Timestamptz(6)
-  created_at      DateTime?                @default(now()) @db.Timestamp(6)
-  created_by      String?                  @db.VarChar(100)
-  resources       resources?               @relation(fields: [resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  valid_from      DateTime?  @db.Timestamptz(6)
+  valid_to        DateTime?  @db.Timestamptz(6)
+  created_at      DateTime?  @default(now()) @db.Timestamp(6)
+  created_by      String?    @db.VarChar(100)
+  resources       resources? @relation(fields: [resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("tenant_nhai")
 }
 
 model resource_cache {
-  id          String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  resource_id String?                  @db.Uuid
+  id          String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  resource_id String?    @db.Uuid
   cached_data Json?
-  geometry    Unsupported("geometry")?
-  last_sync   DateTime?                @db.Timestamptz(6)
+  last_sync   DateTime?  @db.Timestamptz(6)
   version     Int?
-  is_dirty    Boolean?                 @default(false)
-  created_at  DateTime?                @default(now()) @db.Timestamp(6)
-  created_by  String?                  @db.VarChar(100)
-  resources   resources?               @relation(fields: [resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  is_dirty    Boolean?   @default(false)
+  created_at  DateTime?  @default(now()) @db.Timestamp(6)
+  created_by  String?    @db.VarChar(100)
+  resources   resources? @relation(fields: [resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("tenant_nhai")
 }
 
 model resources {
-  id                  String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  resource_type       String                   @db.VarChar(50)
-  resource_name       String                   @db.VarChar(255)
-  resource_path       String                   @unique @db.VarChar(255)
-  geometry            Unsupported("geometry")?
+  id                  String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  resource_type       String                @db.VarChar(50)
+  resource_name       String                @db.VarChar(255)
+  resource_path       String                @unique @db.VarChar(255)
   properties          Json?
   metadata            Json?
-  created_at          DateTime?                @default(now()) @db.Timestamp(6)
-  created_by          String?                  @db.VarChar(100)
-  location_id         String?                  @db.Uuid
-  parent_resource_id  String?                  @db.Uuid
-  access_logs         access_logs[]
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  created_by          String?               @db.VarChar(100)
+  location_id         String?               @db.Uuid
+  parent_resource_id  String?               @db.Uuid
   resource_attributes resource_attributes[]
   resource_cache      resource_cache[]
-  resources           resources?               @relation("resourcesToresources", fields: [parent_resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  other_resources     resources[]              @relation("resourcesToresources")
+  location_master     location_master?      @relation(fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  resources           resources?            @relation("resourcesToresources", fields: [parent_resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_resources     resources[]           @relation("resourcesToresources")
 
   @@schema("tenant_nhai")
 }
 
 model roles {
-  role_id                                        Int          @id @default(autoincrement())
-  role_name                                      String       @db.VarChar
+  role_id                                        Int                  @id @default(autoincrement())
+  role_name                                      String               @db.VarChar
   parent_role_id                                 Int?
-  role_description                               String?      @db.VarChar
-  role_details                                   Json?        @db.Json
+  role_description                               String?              @db.VarChar
+  role_details                                   Json?                @db.Json
   org_id                                         Int?
   created_by                                     Int
-  created_date                                   DateTime     @default(now()) @db.Timestamp(6)
+  created_date                                   DateTime             @default(now()) @db.Timestamp(6)
   last_updated_by                                Int?
-  is_active                                      Boolean      @default(true)
-  user_master_roles_created_byTouser_master      user_master  @relation("roles_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_roles_last_updated_byTouser_master user_master? @relation("roles_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  roles                                          roles?       @relation("rolesToroles", fields: [parent_role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
-  other_roles                                    roles[]      @relation("rolesToroles")
-
-  @@schema("tenant_nhai")
-}
-
-model shift_tracking {
-  shift_id                                           Int                      @id @default(autoincrement())
-  user_id                                            Int
-  ucc_id                                             Int?
-  shift_start_time                                   DateTime                 @db.Timestamp(6)
-  shift_end_time                                     DateTime                 @db.Timestamp(6)
-  shift_duration                                     Unsupported("interval")
-  overtime_hours                                     Unsupported("interval")? @default(dbgenerated("'00:00:00'::interval"))
-  scheduled_shift_date                               DateTime                 @db.Date
-  is_active                                          Boolean                  @default(true)
-  created_by                                         Int
-  created_at                                         DateTime                 @default(now()) @db.Timestamp(6)
-  updated_by                                         Int?
-  updated_at                                         DateTime?                @db.Timestamp(6)
-  user_master_shift_tracking_created_byTouser_master user_master              @relation("shift_tracking_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  ucc_master                                         ucc_master?              @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_shift_tracking_updated_byTouser_master user_master?             @relation("shift_tracking_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_shift_tracking_user_idTouser_master    user_master              @relation("shift_tracking_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  is_active                                      Boolean              @default(true)
+  user_master_roles_created_byTouser_master      user_master          @relation("roles_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_roles_last_updated_byTouser_master user_master?         @relation("roles_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  organization_master                            organization_master? @relation(fields: [org_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction)
+  roles                                          roles?               @relation("rolesToroles", fields: [parent_role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
+  other_roles                                    roles[]              @relation("rolesToroles")
 
   @@schema("tenant_nhai")
 }
 
 model supporting_documents {
   document_id   Int       @id @default(autoincrement())
-  document_type String    @db.VarChar(255)
+  document_type String?   @db.VarChar(255)
   key_id        Int?
-  key_name      String    @db.VarChar(255)
-  document_name String?
-  document_path String?
+  key_name      String?   @db.VarChar(255)
+  document_name String
+  document_path String
   is_deleted    Boolean?  @default(false)
   created_by    String?   @db.VarChar(100)
   created_at    DateTime? @default(now()) @db.Timestamptz(6)
-  updated_by    String?   @db.VarChar(100)
+  updated_by    Int?
   updated_at    DateTime? @default(now()) @db.Timestamptz(6)
-
-  @@schema("tenant_nhai")
-}
-
-model tenants {
-  id          Int    @id @default(autoincrement())
-  tenant      String @unique @db.VarChar(255)
-  schema_name String @unique @db.VarChar(255)
+  ucc_id        String?   @db.VarChar(16)
+  status        String?   @db.VarChar
 
   @@schema("tenant_nhai")
 }
 
 model ucc_master {
-  ucc_id                                         Int                         @id @default(autoincrement())
-  tender_id                                      String?                     @db.VarChar(25)
-  tender_details                                 Json?                       @db.Json
-  temporary_ucc                                  String?                     @db.VarChar(16)
-  permanent_ucc                                  String?                     @unique @db.VarChar(16)
-  contract_name                                  String
+  ucc_id                                         Int                            @id @default(autoincrement())
+  tender_id                                      String?                        @db.VarChar(25)
+  tender_details                                 Json?                          @db.Json
+  temporary_ucc                                  String?                        @db.VarChar(16)
+  permanent_ucc                                  String?                        @unique @db.VarChar(16)
+  contract_name                                  String?
   phase_code_id                                  Int?
   corridor_code_id                               Int?
-  stretch_id                                     Int?
   project_code_id                                Int?
   package_code_id                                Int?
   state_code_id                                  Int?
-  usc                                            String?                     @db.VarChar(10)
-  segment_type                                   String                      @db.VarChar(50)
+  usc                                            String?                        @db.VarChar(10)
+  segment_type                                   String?                        @db.VarChar(50)
   current_lane_number                            Int?
   end_lane_number                                Int?
-  implementation_mode                            String                      @db.VarChar(50)
   funding_scheme                                 String?
-  status                                         String                      @db.VarChar(50)
+  status                                         String                         @db.VarChar(50)
   work_types                                     String[]
   project_name                                   String?
   stretch_name                                   String?
   barcode_path                                   String?
   qr_code_path                                   String?
   user_verified                                  Boolean?
-  is_deleted                                     Boolean?                    @default(false)
+  is_deleted                                     Boolean                        @default(false)
   created_by                                     Int?
-  created_at                                     DateTime?                   @default(now()) @db.Timestamptz(6)
+  created_at                                     DateTime?                      @default(now()) @db.Timestamptz(6)
   updated_by                                     Int?
-  updated_at                                     DateTime?                   @default(now()) @db.Timestamptz(6)
-  attendance_tracking                            attendance_tracking[]
-  check_in_compliance                            check_in_compliance[]
-  leave_tracking_compliance                      leave_tracking_compliance[]
-  shift_tracking                                 shift_tracking[]
-  user_master_ucc_master_created_byTouser_master user_master?                @relation("ucc_master_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
-  user_master_ucc_master_updated_byTouser_master user_master?                @relation("ucc_master_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  updated_at                                     DateTime?                      @default(now()) @db.Timestamptz(6)
+  id                                             String?                        @unique(map: "ucc_master_id") @db.VarChar(16)
+  state_id                                       Int?
+  short_name                                     String?                        @db.VarChar
+  ro_id                                          Int?
+  contract_length                                Decimal?                       @db.Decimal
+  implementation_mode_id                         Int?
+  scheme_id                                      Int?
+  piu_id                                         Int[]
+  stretch_id                                     String[]
+  approvedby                                     Int?
+  approvedate                                    DateTime?                      @db.Timestamp(6)
+  statusafterapproval                            String?                        @db.VarChar
+  geom                                           Unsupported("geometry")?
+  am_leave_tracking_compliance                   am_leave_tracking_compliance[]
+  am_shift_tracking                              am_shift_tracking[]
+  rfi_master                                     rfi_master[]
+  rm_defect_master                               rm_defect_master[]
+  ucc_agency_mapping                             ucc_agency_mapping[]
+  user_master_ucc_master_created_byTouser_master user_master?                   @relation("ucc_master_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  ucc_implementation_mode                        ucc_implementation_mode?       @relation(fields: [implementation_mode_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  package_master                                 package_master?                @relation(fields: [package_code_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  or_office_master                               or_office_master?              @relation(fields: [ro_id], references: [office_id], onDelete: NoAction, onUpdate: NoAction)
+  scheme_master                                  scheme_master?                 @relation(fields: [scheme_id], references: [scheme_id], onDelete: NoAction, onUpdate: NoAction)
+  ml_states                                      ml_states?                     @relation(fields: [state_id], references: [state_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_ucc_master_updated_byTouser_master user_master?                   @relation("ucc_master_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  ucc_nh_state_details                           ucc_nh_state_details[]
+  ucc_piu                                        ucc_piu[]
+  ucc_type_of_work_location                      ucc_type_of_work_location[]
 
   @@schema("tenant_nhai")
 }
@@ -696,94 +436,135 @@ model user_attributes {
 }
 
 model user_master {
-  user_id                                                                      Int                         @id @default(autoincrement())
-  unique_username                                                              String?                     @unique @db.Uuid
-  sap_id                                                                       String?                     @unique @db.VarChar(50)
-  name                                                                         String                      @db.VarChar(100)
-  first_name                                                                   String?                     @db.VarChar(50)
-  middle_name                                                                  String?                     @db.VarChar(50)
-  last_name                                                                    String?                     @db.VarChar(50)
-  email                                                                        String?                     @unique @db.VarChar(100)
-  mobile_number                                                                String?                     @unique @db.VarChar
-  user_type                                                                    String                      @db.VarChar(20)
-  organization_id                                                              Int?                        @default(-1)
-  level_id                                                                     Int                         @default(-1)
-  user_role                                                                    Json                        @db.Json
-  designation                                                                  String?                     @db.VarChar(100)
-  gender                                                                       String?                     @db.VarChar(10)
-  nationality                                                                  String?                     @db.VarChar(100)
-  date_of_birth                                                                DateTime?                   @db.Date
-  pan                                                                          Json?                       @db.Json
-  aadhar_image                                                                 String
-  user_image                                                                   String
-  password_hash                                                                String?                     @db.VarChar(255)
-  user_data                                                                    Json?                       @db.Json
-  is_kyc_verified                                                              Boolean?
-  last_kyc_verified_date                                                       DateTime?                   @db.Timestamptz(6)
-  is_active                                                                    Boolean?
-  inactive_at                                                                  DateTime?                   @db.Timestamptz(6)
-  deactivation_reason                                                          String?                     @db.VarChar(255)
-  activation_status                                                            String?                     @db.VarChar(20)
-  created_at                                                                   DateTime?                   @default(now()) @db.Timestamp(6)
-  created_by                                                                   String?                     @db.VarChar(100)
-  updated_at                                                                   DateTime?                   @default(now()) @db.Timestamp(6)
-  updated_by                                                                   String?                     @db.VarChar(100)
-  otp                                                                          String?                     @db.VarChar(6)
-  otp_timestamp                                                                DateTime?                   @db.Timestamp(6)
-  is_digilocker_verified                                                       Boolean?
-  office_location                                                              String?                     @db.VarChar(255)
-  is_email_verified                                                            Boolean?
-  is_whatsapp_update                                                           Boolean?
-  verified_status                                                              Boolean?
-  office_mobile_number                                                         String?                     @db.VarChar(21)
-  status                                                                       String?                     @db.VarChar(40)
-  user_vector_image                                                            String?
-  user_mapping                                                                 user_mapping[]
-  access_logs                                                                  access_logs[]
-  address_master_address_master_created_byTouser_master                        address_master[]            @relation("address_master_created_byTouser_master")
-  address_master_address_master_last_updated_byTouser_master                   address_master[]            @relation("address_master_last_updated_byTouser_master")
-  attendance_analytics_attendance_analytics_created_byTouser_master            attendance_analytics[]      @relation("attendance_analytics_created_byTouser_master")
-  attendance_analytics_attendance_analytics_user_idTouser_master               attendance_analytics[]      @relation("attendance_analytics_user_idTouser_master")
-  attendance_tracking_attendance_tracking_created_byTouser_master              attendance_tracking[]       @relation("attendance_tracking_created_byTouser_master")
-  attendance_tracking_attendance_tracking_updated_byTouser_master              attendance_tracking[]       @relation("attendance_tracking_updated_byTouser_master")
-  attendance_tracking_attendance_tracking_user_idTouser_master                 attendance_tracking[]       @relation("attendance_tracking_user_idTouser_master")
-  authentication                                                               authentication[]
-  calender_master_calender_master_created_byTouser_master                      calender_master[]           @relation("calender_master_created_byTouser_master")
-  calender_master_calender_master_updated_byTouser_master                      calender_master[]           @relation("calender_master_updated_byTouser_master")
-  check_in_compliance_check_in_compliance_created_byTouser_master              check_in_compliance[]       @relation("check_in_compliance_created_byTouser_master")
-  check_in_compliance_check_in_compliance_updated_byTouser_master              check_in_compliance[]       @relation("check_in_compliance_updated_byTouser_master")
-  check_in_compliance_check_in_compliance_user_idTouser_master                 check_in_compliance[]       @relation("check_in_compliance_user_idTouser_master")
-  designation_master_designation_master_created_byTouser_master                designation_master[]        @relation("designation_master_created_byTouser_master")
-  designation_master_designation_master_last_updated_byTouser_master           designation_master[]        @relation("designation_master_last_updated_byTouser_master")
-  division_master_division_master_created_byTouser_master                      division_master[]           @relation("division_master_created_byTouser_master")
-  division_master_division_master_last_updated_byTouser_master                 division_master[]           @relation("division_master_last_updated_byTouser_master")
-  event_log                                                                    event_log[]
-  event_log_history                                                            event_log_history[]
-  leave_management_leave_management_approver_idTouser_master                   leave_management[]          @relation("leave_management_approver_idTouser_master")
-  leave_management_leave_management_created_byTouser_master                    leave_management[]          @relation("leave_management_created_byTouser_master")
-  leave_management_leave_management_updated_byTouser_master                    leave_management[]          @relation("leave_management_updated_byTouser_master")
-  leave_management_leave_management_user_idTouser_master                       leave_management[]          @relation("leave_management_user_idTouser_master")
-  leave_tracking_compliance_leave_tracking_compliance_created_byTouser_master  leave_tracking_compliance[] @relation("leave_tracking_compliance_created_byTouser_master")
-  leave_tracking_compliance_leave_tracking_compliance_updated_byTouser_master  leave_tracking_compliance[] @relation("leave_tracking_compliance_updated_byTouser_master")
-  leave_tracking_compliance_leave_tracking_compliance_user_idTouser_master     leave_tracking_compliance[] @relation("leave_tracking_compliance_user_idTouser_master")
-  office_master_office_master_created_byTouser_master                          office_master[]             @relation("office_master_created_byTouser_master")
-  office_master_office_master_last_updated_byTouser_master                     office_master[]             @relation("office_master_last_updated_byTouser_master")
-  otp_verification                                                             otp_verification[]
-  registration_invitation_registration_invitation_last_updated_byTouser_master registration_invitation[]   @relation("registration_invitation_last_updated_byTouser_master")
-  registration_invitation_registration_invitation_user_idTouser_master         registration_invitation[]   @relation("registration_invitation_user_idTouser_master")
-  roles_roles_created_byTouser_master                                          roles[]                     @relation("roles_created_byTouser_master")
-  roles_roles_last_updated_byTouser_master                                     roles[]                     @relation("roles_last_updated_byTouser_master")
-  shift_tracking_shift_tracking_created_byTouser_master                        shift_tracking[]            @relation("shift_tracking_created_byTouser_master")
-  shift_tracking_shift_tracking_updated_byTouser_master                        shift_tracking[]            @relation("shift_tracking_updated_byTouser_master")
-  shift_tracking_shift_tracking_user_idTouser_master                           shift_tracking[]            @relation("shift_tracking_user_idTouser_master")
-  ucc_master_ucc_master_created_byTouser_master                                ucc_master[]                @relation("ucc_master_created_byTouser_master")
-  ucc_master_ucc_master_updated_byTouser_master                                ucc_master[]                @relation("ucc_master_updated_byTouser_master")
-  user_attributes                                                              user_attributes[]
-  organization_master                                                          organization_master?        @relation(fields: [organization_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction)
-  user_office_mapping_user_office_mapping_created_byTouser_master              user_office_mapping[]       @relation("user_office_mapping_created_byTouser_master")
-  user_office_mapping_user_office_mapping_last_updated_byTouser_master         user_office_mapping[]       @relation("user_office_mapping_last_updated_byTouser_master")
-  user_office_mapping_user_office_mapping_user_idTouser_master                 user_office_mapping[]       @relation("user_office_mapping_user_idTouser_master")
-  user_sessions                                                                user_sessions[]
+  user_id                                                                            Int                            @id @default(autoincrement())
+  unique_username                                                                    String?                        @unique @db.Uuid
+  sap_id                                                                             String?                        @unique @db.VarChar(50)
+  name                                                                               String                         @db.VarChar(100)
+  first_name                                                                         String?                        @db.VarChar(50)
+  middle_name                                                                        String?                        @db.VarChar(50)
+  last_name                                                                          String?                        @db.VarChar(50)
+  email                                                                              String?                        @unique @db.VarChar(100)
+  mobile_number                                                                      String?                        @unique @db.VarChar
+  user_type                                                                          String                         @db.VarChar(30)
+  organization_id                                                                    Int?                           @default(-1)
+  level_id                                                                           Int                            @default(-1)
+  user_role                                                                          Json                           @db.Json
+  designation                                                                        String?                        @db.VarChar(100)
+  gender                                                                             String?                        @db.VarChar(10)
+  nationality                                                                        String?                        @db.VarChar(100)
+  date_of_birth                                                                      DateTime?                      @db.Date
+  pan                                                                                Json?                          @db.Json
+  aadhar_image                                                                       String
+  user_image                                                                         String
+  password_hash                                                                      String?                        @db.VarChar(255)
+  user_data                                                                          Json?                          @db.Json
+  is_kyc_verified                                                                    Boolean?
+  last_kyc_verified_date                                                             DateTime?                      @db.Timestamptz(6)
+  is_active                                                                          Boolean?
+  inactive_at                                                                        DateTime?                      @db.Timestamptz(6)
+  deactivation_reason                                                                String?                        @db.VarChar(255)
+  activation_status                                                                  String?                        @db.VarChar(20)
+  created_at                                                                         DateTime?                      @default(now()) @db.Timestamp(6)
+  created_by                                                                         String?                        @db.VarChar(100)
+  updated_at                                                                         DateTime?                      @default(now()) @db.Timestamp(6)
+  updated_by                                                                         String?                        @db.VarChar(100)
+  is_digilocker_verified                                                             Boolean?
+  office_location                                                                    String?                        @db.VarChar(255)
+  is_email_verified                                                                  Boolean?
+  is_whatsapp_update                                                                 Boolean?
+  verified_status                                                                    Boolean?
+  status                                                                             String?                        @db.VarChar(20)
+  location_id                                                                        Int?
+  office_mobile_number                                                               String?                        @db.VarChar(20)
+  user_keyclock_id                                                                   String?                        @db.Uuid
+  user_role_id                                                                       Int?
+  user_roles                                                                         String?                        @db.VarChar
+  user_profile_pic_path                                                              String?
+  parent_id                                                                          Int?
+  user_vector_image                                                                  String?
+  division                                                                           String?                        @db.VarChar
+  department                                                                         String?                        @db.VarChar
+  office_id                                                                          Int?
+  is_attendance_disabled                                                             Boolean                        @default(false)
+  attendance_disabled_date                                                           DateTime?                      @db.Timestamp(6)
+  attendance_enabled_date                                                            DateTime?                      @db.Timestamp(6)
+  functional_division_id                                                             Int?
+  onboarded_on                                                                       DateTime?                      @db.Timestamp(6)
+  user_invite_data                                                                   Json?                          @db.Json
+  user_mapping                                                                       user_mapping[]
+  address_master_address_master_created_byTouser_master                              address_master[]               @relation("address_master_created_byTouser_master")
+  address_master_address_master_last_updated_byTouser_master                         address_master[]               @relation("address_master_last_updated_byTouser_master")
+  am_attendance                                                                      am_attendance[]
+  am_leave_management_am_leave_management_approver_idTouser_master                   am_leave_management[]          @relation("am_leave_management_approver_idTouser_master")
+  am_leave_management_am_leave_management_created_byTouser_master                    am_leave_management[]          @relation("am_leave_management_created_byTouser_master")
+  am_leave_management_am_leave_management_updated_byTouser_master                    am_leave_management[]          @relation("am_leave_management_updated_byTouser_master")
+  am_leave_management_am_leave_management_user_idTouser_master                       am_leave_management[]          @relation("am_leave_management_user_idTouser_master")
+  am_leave_tracking_compliance_am_leave_tracking_compliance_created_byTouser_master  am_leave_tracking_compliance[] @relation("am_leave_tracking_compliance_created_byTouser_master")
+  am_leave_tracking_compliance_am_leave_tracking_compliance_updated_byTouser_master  am_leave_tracking_compliance[] @relation("am_leave_tracking_compliance_updated_byTouser_master")
+  am_leave_tracking_compliance_am_leave_tracking_compliance_user_idTouser_master     am_leave_tracking_compliance[] @relation("am_leave_tracking_compliance_user_idTouser_master")
+  am_shift_tracking_am_shift_tracking_created_byTouser_master                        am_shift_tracking[]            @relation("am_shift_tracking_created_byTouser_master")
+  am_shift_tracking_am_shift_tracking_updated_byTouser_master                        am_shift_tracking[]            @relation("am_shift_tracking_updated_byTouser_master")
+  am_shift_tracking_am_shift_tracking_user_idTouser_master                           am_shift_tracking[]            @relation("am_shift_tracking_user_idTouser_master")
+  designation_master_designation_master_created_byTouser_master                      designation_master[]           @relation("designation_master_created_byTouser_master")
+  designation_master_designation_master_last_updated_byTouser_master                 designation_master[]           @relation("designation_master_last_updated_byTouser_master")
+  event_log                                                                          event_log[]
+  or_divisions_or_divisions_created_byTouser_master                                  or_divisions[]                 @relation("or_divisions_created_byTouser_master")
+  or_divisions_or_divisions_last_updated_byTouser_master                             or_divisions[]                 @relation("or_divisions_last_updated_byTouser_master")
+  or_organization_spoc_or_organization_spoc_created_byTouser_master                  or_organization_spoc[]         @relation("or_organization_spoc_created_byTouser_master") @ignore
+  or_organization_spoc_or_organization_spoc_updated_byTouser_master                  or_organization_spoc[]         @relation("or_organization_spoc_updated_byTouser_master") @ignore
+  or_organization_spoc_or_organization_spoc_user_idTouser_master                     or_organization_spoc[]         @relation("or_organization_spoc_user_idTouser_master") @ignore
+  otp_verification                                                                   otp_verification[]
+  projects_code_master_projects_code_master_created_byTouser_master                  projects_code_master[]         @relation("projects_code_master_created_byTouser_master")
+  projects_code_master_projects_code_master_updated_byTouser_master                  projects_code_master[]         @relation("projects_code_master_updated_byTouser_master")
+  registration_invitation_registration_invitation_created_byTouser_master            registration_invitation[]      @relation("registration_invitation_created_byTouser_master")
+  registration_invitation_registration_invitation_last_updated_byTouser_master       registration_invitation[]      @relation("registration_invitation_last_updated_byTouser_master")
+  registration_invitation_registration_invitation_user_idTouser_master               registration_invitation[]      @relation("registration_invitation_user_idTouser_master")
+  rfi_inspection_tracking_rfi_inspection_tracking_created_byTouser_master            rfi_inspection_tracking[]      @relation("rfi_inspection_tracking_created_byTouser_master")
+  rfi_inspection_tracking_rfi_inspection_tracking_inspected_byTouser_master          rfi_inspection_tracking[]      @relation("rfi_inspection_tracking_inspected_byTouser_master")
+  rfi_inspection_tracking_rfi_inspection_tracking_last_updated_byTouser_master       rfi_inspection_tracking[]      @relation("rfi_inspection_tracking_last_updated_byTouser_master")
+  rm_atr_management_rm_atr_management_created_byTouser_master                        rm_atr_management[]            @relation("rm_atr_management_created_byTouser_master")
+  rm_atr_management_rm_atr_management_last_updated_byTouser_master                   rm_atr_management[]            @relation("rm_atr_management_last_updated_byTouser_master")
+  rm_atr_management_rm_atr_management_reviewed_byTouser_master                       rm_atr_management[]            @relation("rm_atr_management_reviewed_byTouser_master")
+  rm_defect_management_rm_defect_management_created_byTouser_master                  rm_defect_management[]         @relation("rm_defect_management_created_byTouser_master")
+  rm_defect_management_rm_defect_management_last_updated_byTouser_master             rm_defect_management[]         @relation("rm_defect_management_last_updated_byTouser_master")
+  rm_defect_master_rm_defect_master_created_byTouser_master                          rm_defect_master[]             @relation("rm_defect_master_created_byTouser_master")
+  rm_defect_master_rm_defect_master_last_updated_byTouser_master                     rm_defect_master[]             @relation("rm_defect_master_last_updated_byTouser_master")
+  rm_eot_rm_eot_created_byTouser_master                                              rm_eot[]                       @relation("rm_eot_created_byTouser_master")
+  rm_eot_rm_eot_last_updated_byTouser_master                                         rm_eot[]                       @relation("rm_eot_last_updated_byTouser_master")
+  rm_eot_rm_eot_approved_byTouser_master                                             rm_eot[]                       @relation("rm_eot_approved_byTouser_master")
+  rm_eot_rm_eot_requested_byTouser_master                                            rm_eot[]                       @relation("rm_eot_requested_byTouser_master")
+  rm_inspection_rm_inspection_created_byTouser_master                                rm_inspection[]                @relation("rm_inspection_created_byTouser_master")
+  rm_inspection_rm_inspection_last_updated_byTouser_master                           rm_inspection[]                @relation("rm_inspection_last_updated_byTouser_master")
+  rm_inspection_rm_inspection_primary_inspector_idTouser_master                      rm_inspection[]                @relation("rm_inspection_primary_inspector_idTouser_master")
+  rm_inspection_invites_rm_inspection_invites_created_byTouser_master                rm_inspection_invites[]        @relation("rm_inspection_invites_created_byTouser_master")
+  rm_inspection_invites_rm_inspection_invites_updated_byTouser_master                rm_inspection_invites[]        @relation("rm_inspection_invites_updated_byTouser_master")
+  roles_roles_created_byTouser_master                                                roles[]                        @relation("roles_created_byTouser_master")
+  roles_roles_last_updated_byTouser_master                                           roles[]                        @relation("roles_last_updated_byTouser_master")
+  ucc_agency_mapping_ucc_agency_mapping_created_byTouser_master                      ucc_agency_mapping[]           @relation("ucc_agency_mapping_created_byTouser_master")
+  ucc_agency_mapping_ucc_agency_mapping_updated_byTouser_master                      ucc_agency_mapping[]           @relation("ucc_agency_mapping_updated_byTouser_master")
+  ucc_change_log                                                                     ucc_change_log[]
+  ucc_location_ucc_location_created_byTouser_master                                  ucc_location[]                 @relation("ucc_location_created_byTouser_master")
+  ucc_location_ucc_location_updated_byTouser_master                                  ucc_location[]                 @relation("ucc_location_updated_byTouser_master")
+  ucc_master_ucc_master_created_byTouser_master                                      ucc_master[]                   @relation("ucc_master_created_byTouser_master")
+  ucc_master_ucc_master_updated_byTouser_master                                      ucc_master[]                   @relation("ucc_master_updated_byTouser_master")
+  ucc_piu_ucc_piu_created_byTouser_master                                            ucc_piu[]                      @relation("ucc_piu_created_byTouser_master")
+  ucc_piu_ucc_piu_updated_byTouser_master                                            ucc_piu[]                      @relation("ucc_piu_updated_byTouser_master")
+  ucc_type_of_work_location                                                          ucc_type_of_work_location[]
+  us_otp_verification                                                                us_otp_verification[]
+  us_registration_invitation_us_registration_invitation_created_byTouser_master      us_registration_invitation[]   @relation("us_registration_invitation_created_byTouser_master")
+  us_registration_invitation_us_registration_invitation_last_updated_byTouser_master us_registration_invitation[]   @relation("us_registration_invitation_last_updated_byTouser_master")
+  us_registration_invitation_us_registration_invitation_user_idTouser_master         us_registration_invitation[]   @relation("us_registration_invitation_user_idTouser_master")
+  user_attributes                                                                    user_attributes[]
+  functional_division_master                                                         functional_division_master?    @relation(fields: [functional_division_id], references: [functional_division_id], onDelete: NoAction, onUpdate: NoAction)
+  or_office_master                                                                   or_office_master?              @relation(fields: [office_id], references: [office_id], onDelete: NoAction, onUpdate: NoAction)
+  organization_master                                                                organization_master?           @relation(fields: [organization_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction)
+  user_office_mapping_user_office_mapping_created_byTouser_master                    user_office_mapping[]          @relation("user_office_mapping_created_byTouser_master")
+  user_office_mapping_user_office_mapping_last_updated_byTouser_master               user_office_mapping[]          @relation("user_office_mapping_last_updated_byTouser_master")
+  user_office_mapping_user_office_mapping_user_idTouser_master                       user_office_mapping[]          @relation("user_office_mapping_user_idTouser_master")
+  user_sessions                                                                      user_sessions[]
+  zz_event_log                                                                       zz_event_log[]
+  zz_ucc_piu_logs_zz_ucc_piu_logs_created_byTouser_master                            zz_ucc_piu_logs[]              @relation("zz_ucc_piu_logs_created_byTouser_master")
+  zz_ucc_piu_logs_zz_ucc_piu_logs_updated_byTouser_master                            zz_ucc_piu_logs[]              @relation("zz_ucc_piu_logs_updated_byTouser_master")
 
   @@schema("tenant_nhai")
 }
@@ -803,7 +584,6 @@ model user_office_mapping {
   user_master_user_office_mapping_created_byTouser_master      user_master         @relation("user_office_mapping_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_created_by")
   designation_master                                           designation_master? @relation(fields: [designation_id], references: [designation_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_designation")
   user_master_user_office_mapping_last_updated_byTouser_master user_master?        @relation("user_office_mapping_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_last_updated_by")
-  office_master                                                office_master       @relation(fields: [office_id], references: [office_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_office")
   user_master_user_office_mapping_user_idTouser_master         user_master         @relation("user_office_mapping_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user")
 
   @@unique([user_id, office_id, from_date])
@@ -826,6 +606,1056 @@ model user_sessions {
   @@schema("tenant_nhai")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model mt_tenant_master {
+  tenant_client_id String    @id @db.VarChar(100)
+  tenant_name      String    @db.VarChar(100)
+  db_name          String    @default("Dummy Value") @db.VarChar(100)
+  schema_name      String    @default("Dummy Value") @db.VarChar(100)
+  url              String    @default("Dummy Value") @db.VarChar(255)
+  user_name        String    @default("Dummy Value") @db.VarChar(100)
+  password         String    @default("Dummy Value") @db.VarChar(256)
+  driver_class     String    @default("postgres") @db.VarChar(255)
+  status           String    @db.VarChar(10)
+  is_active        Boolean?  @default(true)
+  created_by       Int?
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_by       Int?
+  updated_at       DateTime? @default(now()) @db.Timestamp(6)
+
+  @@schema("common")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model am_attendance {
+  attendance_id             Int                       @id @default(autoincrement())
+  ucc_id                    String                    @db.VarChar
+  check_in_time             DateTime?                 @db.Timestamp(6)
+  check_in_lat              Decimal?                  @db.Decimal(10, 7)
+  check_in_lng              Decimal?                  @db.Decimal(10, 7)
+  check_in_loc              Unsupported("geography")?
+  check_in_accuracy         Float?
+  check_in_device_id        String?                   @db.VarChar(200)
+  check_in_ip_address       String?                   @db.VarChar(45)
+  check_in_remarks          String?
+  check_in_geofence_status  String?                   @default("INSIDE")
+  check_out_time            DateTime?                 @db.Timestamp(6)
+  check_out_lat             Decimal?                  @db.Decimal(10, 7)
+  check_out_lng             Decimal?                  @db.Decimal(10, 7)
+  check_out_loc             Unsupported("geography")?
+  check_out_accuracy        Float?
+  check_out_device_id       String?                   @db.VarChar(200)
+  check_out_ip_address      String?                   @db.VarChar(45)
+  check_out_remarks         String?
+  check_out_geofence_status String?                   @default("INSIDE")
+  created_by                Int?
+  created_at                DateTime?                 @default(now()) @db.Timestamp(6)
+  updated_by                Int?
+  updated_at                DateTime?                 @default(now()) @db.Timestamp(6)
+  attendance_date           DateTime?                 @db.Date
+  user_id                   Int?
+  attendance_status         String?                   @db.VarChar
+  approval_date             DateTime?                 @db.Timestamp(6)
+  approval_status           Boolean                   @default(false)
+  user_master               user_master?              @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_attendance_user_id")
+
+  @@schema("tenant_nhai")
+}
+
+model am_leave_management {
+  leave_id                                                 Int          @id(map: "leave_management_pkey") @default(autoincrement())
+  user_id                                                  Int
+  start_date                                               DateTime     @db.Date
+  end_date                                                 DateTime     @db.Date
+  leave_type                                               String       @db.VarChar(10)
+  reason                                                   String?
+  status                                                   String       @default("Pending") @db.VarChar(10)
+  approver_id                                              Int?
+  is_active                                                Boolean      @default(true)
+  created_by                                               Int
+  created_at                                               DateTime     @default(now()) @db.Timestamp(6)
+  updated_by                                               Int?
+  updated_at                                               DateTime?    @db.Timestamp(6)
+  user_master_am_leave_management_approver_idTouser_master user_master? @relation("am_leave_management_approver_idTouser_master", fields: [approver_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "leave_management_approver_id_fkey")
+  user_master_am_leave_management_created_byTouser_master  user_master  @relation("am_leave_management_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "leave_management_created_by_fkey")
+  user_master_am_leave_management_updated_byTouser_master  user_master? @relation("am_leave_management_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "leave_management_updated_by_fkey")
+  user_master_am_leave_management_user_idTouser_master     user_master  @relation("am_leave_management_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "leave_management_user_id_fkey")
+
+  @@schema("tenant_nhai")
+}
+
+model am_leave_tracking_compliance {
+  leave_id                                                         Int          @id(map: "leave_tracking_compliance_pkey") @default(autoincrement())
+  user_id                                                          Int
+  ucc_id                                                           Int?
+  leave_type                                                       String       @db.VarChar(10)
+  leave_start_date                                                 DateTime     @db.Date
+  leave_end_date                                                   DateTime     @db.Date
+  leave_duration                                                   Int
+  leave_status                                                     String       @db.VarChar(10)
+  compliance_status                                                Boolean?     @default(true)
+  non_compliance_reason                                            String?      @db.VarChar(255)
+  is_active                                                        Boolean      @default(true)
+  created_by                                                       Int
+  created_at                                                       DateTime     @default(now()) @db.Timestamp(6)
+  updated_by                                                       Int?
+  updated_at                                                       DateTime?    @db.Timestamp(6)
+  user_master_am_leave_tracking_compliance_created_byTouser_master user_master  @relation("am_leave_tracking_compliance_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "leave_tracking_compliance_created_by_fkey")
+  ucc_master                                                       ucc_master?  @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction, map: "leave_tracking_compliance_ucc_id_fkey")
+  user_master_am_leave_tracking_compliance_updated_byTouser_master user_master? @relation("am_leave_tracking_compliance_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "leave_tracking_compliance_updated_by_fkey")
+  user_master_am_leave_tracking_compliance_user_idTouser_master    user_master  @relation("am_leave_tracking_compliance_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "leave_tracking_compliance_user_id_fkey")
+
+  @@schema("tenant_nhai")
+}
+
+model am_shift_tracking {
+  shift_id                                              Int                      @id(map: "shift_tracking_pkey") @default(autoincrement())
+  user_id                                               Int
+  ucc_id                                                Int?
+  shift_start_time                                      DateTime                 @db.Timestamp(6)
+  shift_end_time                                        DateTime                 @db.Timestamp(6)
+  shift_duration                                        Unsupported("interval")
+  overtime_hours                                        Unsupported("interval")? @default(dbgenerated("'00:00:00'::interval"))
+  scheduled_shift_date                                  DateTime                 @db.Date
+  is_active                                             Boolean                  @default(true)
+  created_by                                            Int
+  created_at                                            DateTime                 @default(now()) @db.Timestamp(6)
+  updated_by                                            Int?
+  updated_at                                            DateTime?                @db.Timestamp(6)
+  user_master_am_shift_tracking_created_byTouser_master user_master              @relation("am_shift_tracking_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "shift_tracking_created_by_fkey")
+  ucc_master                                            ucc_master?              @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction, map: "shift_tracking_ucc_id_fkey")
+  user_master_am_shift_tracking_updated_byTouser_master user_master?             @relation("am_shift_tracking_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "shift_tracking_updated_by_fkey")
+  user_master_am_shift_tracking_user_idTouser_master    user_master              @relation("am_shift_tracking_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "shift_tracking_user_id_fkey")
+
+  @@schema("tenant_nhai")
+}
+
+model districts_master {
+  district_id   Int        @id @default(autoincrement())
+  district_name String     @db.VarChar(100)
+  state_id      Int?
+  ml_states     ml_states? @relation(fields: [state_id], references: [state_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model documents_master {
+  document_id    Int       @id @default(autoincrement())
+  document_type  String    @db.VarChar(255)
+  key_id         Int?
+  key_name       String?   @db.VarChar(255)
+  document_name  String?
+  document_path  String?
+  is_deleted     Boolean?  @default(false)
+  created_by     String?   @db.VarChar(100)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_by     Int?
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
+  module_type_id Int?
+  status         String    @db.VarChar
+  module_type    String?   @db.VarChar
+
+  @@schema("tenant_nhai")
+}
+
+model functional_division_master {
+  functional_division_id   Int           @id @default(autoincrement())
+  functional_division_name String        @db.VarChar(255)
+  created_at               DateTime      @default(now()) @db.Timestamp(6)
+  last_updated_at          DateTime?     @db.Timestamp(6)
+  user_master              user_master[]
+
+  @@schema("tenant_nhai")
+}
+
+model holiday_master {
+  holiday_id   Int      @id @default(autoincrement())
+  holiday_name String   @db.VarChar
+  holiday_Date DateTime @db.Date
+  region       String?  @db.VarChar
+  holiday_type String   @db.VarChar
+
+  @@schema("tenant_nhai")
+}
+
+model joint_venture_organisations {
+  id                  Int                 @id @default(autoincrement())
+  joint_venture_id    Int
+  organisation_id     Int
+  role                String?             @db.VarChar(100)
+  joined_at           DateTime?           @default(now()) @db.Timestamp(6)
+  joint_ventures      joint_ventures      @relation(fields: [joint_venture_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  organization_master organization_master @relation(fields: [organisation_id], references: [org_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([joint_venture_id, organisation_id])
+  @@schema("tenant_nhai")
+}
+
+model joint_ventures {
+  id                          Int                           @id @default(autoincrement())
+  name                        String                        @db.VarChar(255)
+  is_active                   Boolean?
+  created_by                  Int?
+  created_at                  DateTime?                     @default(now()) @db.Timestamp(6)
+  joint_venture_organisations joint_venture_organisations[]
+  rm_inspection               rm_inspection[]
+
+  @@schema("tenant_nhai")
+}
+
+model location_master {
+  id                    String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                  String?               @db.VarChar(255)
+  type                  String?               @db.VarChar(50)
+  properties            Json?
+  created_at            DateTime?             @default(now()) @db.Timestamp(6)
+  created_by            String?               @db.VarChar(100)
+  parent_location_id    String?               @db.Uuid
+  hierarchy_path        Unsupported("ltree")?
+  location_master       location_master?      @relation("location_masterTolocation_master", fields: [parent_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_location_master location_master[]     @relation("location_masterTolocation_master")
+  resources             resources[]
+
+  @@schema("tenant_nhai")
+}
+
+model ml_regions {
+  region_id Int    @id @default(autoincrement())
+  region    String @db.VarChar
+  is_active Int    @db.SmallInt
+
+  @@schema("tenant_nhai")
+}
+
+model ml_states {
+  state_id             Int                    @id(map: "state_master_pkey") @default(autoincrement())
+  state_name           String                 @db.VarChar(100)
+  state_code           String?                @db.VarChar(3)
+  districts_master     districts_master[]
+  ucc_master           ucc_master[]
+  ucc_nh_state_details ucc_nh_state_details[]
+
+  @@schema("tenant_nhai")
+}
+
+model or_divisions {
+  division_id                                           Int                  @id(map: "division_master_pkey") @default(autoincrement())
+  division_name                                         String               @db.VarChar(255)
+  division_description                                  String?
+  parent_division_id                                    Int?
+  org_id                                                Int?
+  office_id                                             Int?
+  start_date                                            DateTime             @db.Date
+  end_date                                              DateTime?            @db.Date
+  active_flag                                           Boolean              @default(true)
+  budget                                                Decimal?             @default(0) @db.Decimal(15, 2)
+  number_of_employees                                   Int?                 @default(0)
+  division_type                                         String?              @db.VarChar(100)
+  functional_area                                       String?              @db.VarChar(100)
+  division_details                                      Json?                @db.Json
+  created_by                                            Int
+  created_at                                            DateTime             @default(now()) @db.Timestamp(6)
+  last_updated_by                                       Int?
+  last_updated_at                                       DateTime?            @db.Timestamp(6)
+  user_master_or_divisions_created_byTouser_master      user_master          @relation("or_divisions_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "division_master_created_by_fkey")
+  user_master_or_divisions_last_updated_byTouser_master user_master?         @relation("or_divisions_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "division_master_last_updated_by_fkey")
+  organization_master                                   organization_master? @relation(fields: [org_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction, map: "division_master_org_id_fkey")
+  or_divisions                                          or_divisions?        @relation("or_divisionsToor_divisions", fields: [parent_division_id], references: [division_id], onDelete: NoAction, onUpdate: NoAction, map: "division_master_parent_division_id_fkey")
+  other_or_divisions                                    or_divisions[]       @relation("or_divisionsToor_divisions")
+
+  @@schema("tenant_nhai")
+}
+
+model or_office_master {
+  office_id              Int                 @id @default(autoincrement())
+  org_id                 Int
+  parent_id              Int?
+  office_name            String              @db.VarChar(255)
+  office_type            String              @db.VarChar(100)
+  address_line1          String              @db.VarChar(255)
+  address_line2          String?             @db.VarChar(100)
+  city                   String              @db.VarChar(100)
+  state                  String              @db.VarChar(100)
+  postal_code            String              @db.VarChar(20)
+  contact_number         String?             @db.VarChar(50)
+  email                  String?             @db.VarChar(255)
+  is_active              Boolean             @default(true)
+  created_by             Int?
+  created_at             DateTime?           @default(now()) @db.Timestamp(6)
+  updated_by             Int?
+  updated_at             DateTime?           @default(now()) @db.Timestamp(6)
+  organization_master    organization_master @relation(fields: [org_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction)
+  or_office_master       or_office_master?   @relation("or_office_masterToor_office_master", fields: [parent_id], references: [office_id], onDelete: NoAction, onUpdate: NoAction)
+  other_or_office_master or_office_master[]  @relation("or_office_masterToor_office_master")
+  ucc_master             ucc_master[]
+  ucc_piu                ucc_piu[]
+  user_master            user_master[]
+
+  @@schema("tenant_nhai")
+}
+
+model or_organization_address {
+  address_id          Int                 @id @default(autoincrement())
+  org_id              Int
+  office_name         String              @db.VarChar(255)
+  address_line1       String              @db.VarChar(255)
+  address_line2       String?             @db.VarChar(255)
+  city                String              @db.VarChar(100)
+  state               String              @db.VarChar(100)
+  postal_code         String              @db.VarChar(20)
+  contact_number      String?             @db.VarChar(50)
+  email               String?             @db.VarChar(255)
+  website             String?             @db.VarChar(255)
+  created_by          String              @db.VarChar(255)
+  created_at          DateTime            @default(now()) @db.Timestamp(6)
+  updated_by          String?             @db.VarChar(255)
+  updated_at          DateTime            @default(now()) @db.Timestamp(6)
+  organization_master organization_master @relation(fields: [org_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model or_organization_spoc {
+  org_id                                                   Int
+  user_id                                                  Int
+  is_primary                                               Boolean
+  more_details                                             String?
+  created_by                                               Int?
+  created_at                                               DateTime?           @default(now()) @db.Timestamp(6)
+  updated_by                                               Int?
+  updated_at                                               DateTime?           @default(now()) @db.Timestamp(6)
+  user_master_or_organization_spoc_created_byTouser_master user_master?        @relation("or_organization_spoc_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  organization_master                                      organization_master @relation(fields: [org_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_or_organization_spoc_updated_byTouser_master user_master?        @relation("or_organization_spoc_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_or_organization_spoc_user_idTouser_master    user_master         @relation("or_organization_spoc_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@ignore
+  @@schema("tenant_nhai")
+}
+
+model package_master {
+  id           Int          @id @default(autoincrement())
+  package_code String       @db.VarChar
+  stretch_code String       @db.VarChar
+  created_by   Int
+  created_at   DateTime?    @default(now()) @db.Timestamp(6)
+  update_by    Int
+  updated_at   DateTime?    @db.Timestamp(6)
+  ucc_master   ucc_master[]
+
+  @@schema("tenant_nhai")
+}
+
+model program_master {
+  program_id   Int       @id @default(autoincrement())
+  program_name String    @db.VarChar(255)
+  program_code String?   @unique @db.VarChar(50)
+  is_active    Boolean   @default(true)
+  created_by   Int?
+  created_at   DateTime? @db.Timestamp(6)
+  updated_by   Int?
+  updated_at   DateTime? @db.Timestamp(6)
+
+  @@schema("tenant_nhai")
+}
+
+model project_corridor_master {
+  id            Int       @id @default(autoincrement())
+  corridor_name String    @db.VarChar(255)
+  description   String?
+  corridor_code String?   @unique @db.VarChar(50)
+  is_active     Boolean?  @default(true)
+  created_by    Int?
+  created_at    DateTime? @db.Timestamp(6)
+  updated_by    Int?
+  updated_at    DateTime? @db.Timestamp(6)
+
+  @@schema("tenant_nhai")
+}
+
+model project_phase_master {
+  project_phase_id   Int       @id @default(autoincrement())
+  project_phase_name String    @db.VarChar(255)
+  description        String?
+  phase_code         String?   @db.VarChar(50)
+  is_active          Boolean?  @default(true)
+  created_by         Int?
+  created_at         DateTime? @db.Timestamp(6)
+  updated_by         Int?
+  updated_at         DateTime? @db.Timestamp(6)
+
+  @@schema("tenant_nhai")
+}
+
+model projects_code_master {
+  id                                                       Int          @id @default(autoincrement())
+  project_name                                             String       @db.VarChar(255)
+  description                                              String?
+  project_code                                             String       @unique @db.VarChar(100)
+  is_active                                                Boolean      @default(true)
+  created_by                                               Int
+  created_at                                               DateTime?    @db.Timestamp(6)
+  updated_by                                               Int?
+  updated_at                                               DateTime?    @db.Timestamp(6)
+  user_master_projects_code_master_created_byTouser_master user_master  @relation("projects_code_master_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_projects_code_master_updated_byTouser_master user_master? @relation("projects_code_master_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model rectification_master {
+  id   Int    @id @default(autoincrement())
+  name String @db.VarChar(255)
+
+  @@schema("tenant_nhai")
+}
+
+model rfi_category {
+  id                                  Int                                   @id @default(autoincrement())
+  category_name                       String                                @db.VarChar
+  rfi_catsubcat_itemlayer_association rfi_catsubcat_itemlayer_association[]
+  rfi_master                          rfi_master[]
+
+  @@schema("tenant_nhai")
+}
+
+model rfi_catsubcat_itemlayer_association {
+  id                Int               @id @default(autoincrement())
+  category_id       Int
+  subcategory_id    Int
+  item_id           Int?
+  layer_id          Int?
+  created_at        DateTime?         @default(now()) @db.Timestamp(6)
+  deleted_at        DateTime?         @db.Timestamp(6)
+  rfi_category      rfi_category      @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rfi_item          rfi_item?         @relation(fields: [item_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rfi_layer         rfi_layer?        @relation(fields: [layer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rfi_subcategories rfi_subcategories @relation(fields: [subcategory_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model rfi_inspection_tracking {
+  inspection_id                                                    Int          @id(map: "rm_inspection_tracking_pkey") @default(autoincrement())
+  rfi_id                                                           String       @db.VarChar
+  scheduled_date                                                   DateTime     @db.Timestamp(6)
+  actual_date                                                      DateTime?    @db.Timestamp(6)
+  inspected_by                                                     Int
+  inspection_type                                                  String       @db.VarChar(50)
+  inspection_report                                                Json?        @db.Json
+  status                                                           String       @db.VarChar(20)
+  is_active                                                        Boolean      @default(true)
+  created_by                                                       Int
+  created_at                                                       DateTime     @default(now()) @db.Timestamp(6)
+  last_updated_by                                                  Int?
+  last_updated_at                                                  DateTime?    @default(now()) @db.Timestamp(6)
+  user_master_rfi_inspection_tracking_created_byTouser_master      user_master  @relation("rfi_inspection_tracking_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_created_by")
+  user_master_rfi_inspection_tracking_inspected_byTouser_master    user_master  @relation("rfi_inspection_tracking_inspected_byTouser_master", fields: [inspected_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_inspected_by")
+  user_master_rfi_inspection_tracking_last_updated_byTouser_master user_master? @relation("rfi_inspection_tracking_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_last_updated_by")
+
+  @@schema("tenant_nhai")
+}
+
+model rfi_item {
+  id                                  Int                                   @id @default(autoincrement())
+  item_name                           String                                @db.VarChar
+  is_active                           Boolean                               @default(true)
+  rfi_catsubcat_itemlayer_association rfi_catsubcat_itemlayer_association[]
+  rfi_master                          rfi_master[]
+
+  @@schema("tenant_nhai")
+}
+
+model rfi_layer {
+  id                                  Int                                   @id @default(autoincrement())
+  layer_name                          String                                @db.VarChar
+  is_active                           Boolean                               @default(true)
+  rfi_catsubcat_itemlayer_association rfi_catsubcat_itemlayer_association[]
+  rfi_master                          rfi_master[]
+
+  @@schema("tenant_nhai")
+}
+
+model rfi_master {
+  rfi_id                 Int                @id @default(autoincrement())
+  prev_inspection_id     Int?
+  rfi_status             String             @db.VarChar(20)
+  category_id            Int?
+  subcategory_id         Int?
+  rfi_creation_date_time DateTime           @db.Timestamp(6)
+  rfi_scheduled_date     DateTime           @db.Timestamp(6)
+  ae_assignment_date     DateTime           @db.Timestamp(6)
+  assigned_inspector_id  Int
+  contractor_id          Int
+  ae_ie_id               Int?
+  ucc_id                 Int?
+  location_id            Int?
+  project_id             Int?
+  inspection_details     Json?              @db.Json
+  location_lat           Float
+  location_long          Float
+  related_ncr_id         Int[]
+  created_by             Int
+  created_at             DateTime           @db.Timestamp(6)
+  last_updated_by        Int?
+  last_updated_at        DateTime?          @default(now()) @db.Timestamp(6)
+  item_id                Int?
+  layer_id               Int?
+  side_id                Int?
+  work_description       String?
+  rfi_category           rfi_category?      @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rfi_item               rfi_item?          @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rfi_layer              rfi_layer?         @relation(fields: [layer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rfi_subcategories      rfi_subcategories? @relation(fields: [subcategory_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ucc_master             ucc_master?        @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model rfi_status_master {
+  id          Int       @id @default(autoincrement())
+  status_name String    @db.VarChar(255)
+  status_code String    @unique @db.VarChar(50)
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  updated_at  DateTime? @default(now()) @db.Timestamp(6)
+
+  @@schema("tenant_nhai")
+}
+
+model rfi_subcategories {
+  id                                  Int                                   @id @default(autoincrement())
+  subcategory_name                    String                                @db.VarChar
+  is_active                           Boolean                               @default(true)
+  rfi_catsubcat_itemlayer_association rfi_catsubcat_itemlayer_association[]
+  rfi_master                          rfi_master[]
+
+  @@schema("tenant_nhai")
+}
+
+model rfi_subcategory {
+  id               Int    @id @default(autoincrement())
+  subcategory_name String @db.VarChar
+  category_id      Int
+
+  @@schema("tenant_nhai")
+}
+
+model rm_asset_master {
+  id             Int              @id @default(autoincrement())
+  asset_name     String           @db.Char(255)
+  rm_defect_type rm_defect_type[]
+
+  @@schema("tenant_nhai")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model rm_atr_management {
+  action_id                                                  Int                 @id @default(autoincrement())
+  defect_id                                                  Int
+  org_id                                                     Int
+  submission_date                                            DateTime            @default(dbgenerated("CURRENT_DATE")) @db.Date
+  reviewed_by                                                Int?
+  review_date                                                DateTime?           @db.Date
+  atr_status                                                 String              @default("Open") @db.VarChar
+  remarks                                                    String?
+  is_active                                                  Boolean             @default(true)
+  created_by                                                 Int
+  created_at                                                 DateTime            @default(now()) @db.Timestamp(6)
+  last_updated_by                                            Int?
+  last_updated_at                                            DateTime?           @default(now()) @db.Timestamp(6)
+  atr_assigned_to                                            Int?
+  resolution_status                                          String?             @db.VarChar
+  review_remarks                                             String?             @db.VarChar
+  atr_id                                                     String              @db.VarChar
+  user_master_rm_atr_management_created_byTouser_master      user_master         @relation("rm_atr_management_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  rm_defect_master                                           rm_defect_master    @relation(fields: [defect_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_rm_atr_management_last_updated_byTouser_master user_master?        @relation("rm_atr_management_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  organization_master                                        organization_master @relation(fields: [org_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_rm_atr_management_reviewed_byTouser_master     user_master?        @relation("rm_atr_management_reviewed_byTouser_master", fields: [reviewed_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model rm_defect_management {
+  defect_id                                                     String                   @id @db.VarChar(30)
+  inspection_id                                                 Int?
+  complain_id                                                   Int?
+  survey_id                                                     Int?                     @unique
+  critical                                                      Boolean
+  side                                                          String                   @db.VarChar(20)
+  carriageway                                                   String                   @db.VarChar(20)
+  lane_number                                                   Int?                     @db.SmallInt
+  ae_ie_id                                                      String?                  @db.VarChar(20)
+  source                                                        String?                  @db.VarChar(20)
+  remarks                                                       String?
+  status                                                        String                   @db.VarChar(20)
+  stage                                                         String                   @db.VarChar(20)
+  defect_photo_path                                             String?
+  defect_added_date                                             DateTime?                @db.Timestamp(6)
+  etd                                                           DateTime?                @db.Timestamp(6)
+  date_closed                                                   DateTime?                @db.Timestamp(6)
+  defect_geolocation                                            Unsupported("point")?
+  is_active                                                     Boolean                  @default(true)
+  created_by                                                    Int
+  created_at                                                    DateTime                 @default(now()) @db.Timestamp(6)
+  last_updated_by                                               Int?
+  last_updated_at                                               DateTime?                @default(now()) @db.Timestamp(6)
+  geom                                                          Unsupported("geometry")?
+  start_chainage_m                                              Int?
+  end_chainage_km                                               Int?
+  end_chainage_m                                                Int?
+  start_chainage_km                                             Int
+  latitude                                                      Decimal?                 @db.Decimal(9, 6)
+  longitude                                                     Decimal?                 @db.Decimal(9, 6)
+  user_master_rm_defect_management_created_byTouser_master      user_master              @relation("rm_defect_management_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  rm_defect_master                                              rm_defect_master         @relation(fields: [defect_id], references: [defect_id], onDelete: NoAction, onUpdate: NoAction)
+  rm_inspection                                                 rm_inspection?           @relation(fields: [inspection_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_rm_defect_management_last_updated_byTouser_master user_master?             @relation("rm_defect_management_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "rm_defect_management_last_updated_by_fkey1")
+
+  @@schema("tenant_nhai")
+}
+
+model rm_defect_master {
+  id                                                        Int                   @id @default(autoincrement())
+  defect_id                                                 String                @unique(map: "unique_defect_id") @db.VarChar(10)
+  assigned_to                                               Int?
+  defect_raised_date                                        DateTime              @db.Timestamp(6)
+  defect_closed_date                                        DateTime?             @db.Timestamp(6)
+  defect_status                                             String                @db.VarChar(20)
+  ucc_id                                                    Int?
+  defect_type_id                                            Int
+  is_active                                                 Boolean               @default(true)
+  created_by                                                Int
+  created_at                                                DateTime              @default(now()) @db.Timestamp(6)
+  last_updated_by                                           Int?
+  last_updated_at                                           DateTime?             @default(now()) @db.Timestamp(6)
+  document_master_id                                        Int
+  asset_id                                                  Int
+  due_date                                                  DateTime?             @db.Timestamp(6)
+  rm_atr_management                                         rm_atr_management[]
+  rm_defect_management                                      rm_defect_management?
+  user_master_rm_defect_master_created_byTouser_master      user_master           @relation("rm_defect_master_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  rm_defect_type                                            rm_defect_type        @relation(fields: [defect_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "rm_defect_master_defect_type_fkey")
+  user_master_rm_defect_master_last_updated_byTouser_master user_master?          @relation("rm_defect_master_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  ucc_master                                                ucc_master?           @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction)
+  rm_inspection                                             rm_inspection[]
+
+  @@schema("tenant_nhai")
+}
+
+model rm_defect_type {
+  id               Int                @id @default(autoincrement())
+  defect_type      String             @db.Char(255)
+  asset_id         Int
+  is_active        Int                @db.SmallInt
+  tat              Int
+  rm_defect_master rm_defect_master[]
+  rm_asset_master  rm_asset_master    @relation(fields: [asset_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model rm_eot {
+  id                                              Int          @id @default(autoincrement())
+  requested_by                                    Int
+  request_date                                    DateTime     @default(dbgenerated("CURRENT_DATE")) @db.Date
+  reason_for_eot                                  String
+  original_completion_date                        DateTime     @db.Date
+  proposed_extension_days                         Int
+  status                                          String       @default("Pending") @db.VarChar(20)
+  approved_by                                     Int?
+  approval_date                                   DateTime?    @db.Date
+  approved_extension_days                         Int?         @default(0)
+  approved_new_completion_date                    DateTime?    @db.Date
+  remarks                                         String?
+  created_by                                      Int
+  created_at                                      DateTime     @default(now()) @db.Timestamp(6)
+  last_updated_by                                 Int?
+  last_updated_at                                 DateTime?    @default(now()) @db.Timestamp(6)
+  approval_remarks                                String       @db.VarChar
+  defect_id                                       String       @db.VarChar
+  eot_id                                          String       @db.VarChar(30)
+  user_master_rm_eot_created_byTouser_master      user_master  @relation("rm_eot_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_created_by")
+  user_master_rm_eot_last_updated_byTouser_master user_master? @relation("rm_eot_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_last_updated_by")
+  user_master_rm_eot_approved_byTouser_master     user_master? @relation("rm_eot_approved_byTouser_master", fields: [approved_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_rm_eot_requested_byTouser_master    user_master  @relation("rm_eot_requested_byTouser_master", fields: [requested_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model rm_inspection {
+  inspection_id                                               String                  @db.VarChar(20)
+  defect_id                                                   Int?
+  jv_mapping_id                                               Int?
+  primary_inspector_id                                        Int?
+  spoc_id                                                     String                  @db.VarChar(20)
+  is_joint_inspection                                         Boolean                 @default(false)
+  inspection_details                                          Json?                   @db.Json
+  start_date                                                  DateTime                @db.Timestamp(6)
+  close_date                                                  DateTime                @db.Timestamp(6)
+  status                                                      String                  @db.VarChar(20)
+  is_active                                                   Boolean?                @default(true)
+  created_by                                                  Int?
+  created_at                                                  DateTime?               @default(now()) @db.Timestamp(6)
+  last_updated_by                                             Int?
+  last_updated_at                                             DateTime?               @default(now()) @db.Timestamp(6)
+  id                                                          Int                     @id @default(autoincrement())
+  scheduled_date                                              DateTime                @db.Timestamp(6)
+  actual_date                                                 DateTime                @db.Timestamp(6)
+  rm_defect_management                                        rm_defect_management[]
+  user_master_rm_inspection_created_byTouser_master           user_master?            @relation("rm_inspection_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  rm_defect_master                                            rm_defect_master?       @relation(fields: [defect_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  joint_ventures                                              joint_ventures?         @relation(fields: [jv_mapping_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_rm_inspection_last_updated_byTouser_master      user_master?            @relation("rm_inspection_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_rm_inspection_primary_inspector_idTouser_master user_master?            @relation("rm_inspection_primary_inspector_idTouser_master", fields: [primary_inspector_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  rm_inspection_invites                                       rm_inspection_invites[]
+
+  @@schema("tenant_nhai")
+}
+
+model rm_inspection_invites {
+  id                                                        Int           @id
+  invitee_user_id                                           Int
+  inspection_id                                             Int
+  is_invite_accepted                                        Boolean
+  is_faceauth_done                                          Boolean
+  is_present                                                Boolean
+  is_on_location                                            Boolean
+  is_active                                                 Boolean
+  created_at                                                DateTime      @db.Timestamp(6)
+  created_by                                                Int
+  updated_at                                                DateTime      @db.Timestamp(6)
+  updated_by                                                Int
+  user_master_rm_inspection_invites_created_byTouser_master user_master   @relation("rm_inspection_invites_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  rm_inspection                                             rm_inspection @relation(fields: [inspection_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_rm_inspection_invites_updated_byTouser_master user_master   @relation("rm_inspection_invites_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model scheme_master {
+  scheme_id   Int          @id(map: "tbl_checme_master_pkey") @default(autoincrement())
+  scheme_name String       @db.VarChar(16)
+  is_active   Boolean
+  created_by  Int?
+  created_at  DateTime?    @db.Timestamp(6)
+  updated_at  DateTime?    @db.Timestamp(6)
+  updated_by  Int?
+  ucc_master  ucc_master[]
+
+  @@schema("tenant_nhai")
+}
+
+model status_master {
+  id     Int    @id @default(autoincrement())
+  status String @db.VarChar(50)
+
+  @@schema("tenant_nhai")
+}
+
+model type_of_work {
+  ID                                                                             Int                         @id @default(autoincrement())
+  name_of_work                                                                   String                      @db.VarChar
+  ucc_type_of_work_location_ucc_type_of_work_location_type_of_workTotype_of_work ucc_type_of_work_location[] @relation("ucc_type_of_work_location_type_of_workTotype_of_work")
+
+  @@schema("tenant_nhai")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model ucc_agency_mapping {
+  ucc_id                                                 Int
+  org_jv_id                                              Int
+  created_by                                             Int
+  created_at                                             DateTime            @default(now()) @db.Timestamp(6)
+  updated_by                                             Int
+  updated_at                                             DateTime            @db.Timestamp(6)
+  id                                                     Int                 @id @default(autoincrement())
+  type                                                   String              @db.VarChar
+  user_master_ucc_agency_mapping_created_byTouser_master user_master         @relation("ucc_agency_mapping_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "agency_ucc_mapping_created_by_fkey")
+  organization_master                                    organization_master @relation(fields: [org_jv_id], references: [org_id], onDelete: NoAction, onUpdate: NoAction, map: "agency_ucc_mapping_org_id_fkey")
+  ucc_master                                             ucc_master          @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction, map: "agency_ucc_mapping_ucc_id_fkey")
+  user_master_ucc_agency_mapping_updated_byTouser_master user_master         @relation("ucc_agency_mapping_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "agency_ucc_mapping_updated_by_fkey")
+
+  @@schema("tenant_nhai")
+}
+
+model ucc_change_log {
+  log_id                            Int                        @id @default(autoincrement())
+  ucc_id                            String?                    @db.VarChar
+  changed_field                     String?
+  new_value                         String?
+  changed_at                        DateTime?                  @db.Timestamp(6)
+  is_deleted                        Boolean?                   @default(false)
+  created_by                        Int?
+  created_at                        DateTime?                  @default(now()) @db.Timestamptz(6)
+  updated_by                        Int?
+  updated_at                        DateTime?                  @default(now()) @db.Timestamptz(6)
+  changed_by                        Int?
+  feature_module                    String?                    @db.VarChar
+  old_value                         String                     @default("NA")
+  work_rectification_mapping_id_old Int?
+  work_rectification_mapping_id_new Int?
+  workType_id                       Int?
+  nh_details_id                     Int?
+  nh_state_details_id               Int?
+  ucc_nh_details                    ucc_nh_details?            @relation(fields: [nh_details_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ucc_nh_state_details              ucc_nh_state_details?      @relation(fields: [nh_state_details_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user_master                       user_master?               @relation(fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  ucc_type_of_work_location         ucc_type_of_work_location? @relation(fields: [workType_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model ucc_implementation_mode {
+  id         Int          @id(map: "implementation_mode_master_pkey") @default(autoincrement())
+  mode_name  String       @db.VarChar
+  ucc_master ucc_master[]
+
+  @@schema("tenant_nhai")
+}
+
+model ucc_location {
+  ucc_location_id                                  Int          @id @default(autoincrement())
+  ucc_id                                           Int
+  contract_name                                    String
+  ucc_code                                         String       @db.VarChar(20)
+  division_code                                    String       @db.VarChar(10)
+  corridor_code                                    String       @db.VarChar(10)
+  project_code                                     String       @db.VarChar(10)
+  package_code                                     String       @db.VarChar(10)
+  state_code                                       String?      @db.VarChar(10)
+  segment_type                                     String
+  start_latitude                                   Decimal?     @db.Decimal(10, 8)
+  start_longitude                                  Decimal?     @db.Decimal(11, 8)
+  end_latitude                                     Decimal?     @db.Decimal(10, 8)
+  end_longitude                                    Decimal?     @db.Decimal(11, 8)
+  start_chainage                                   Decimal?     @db.Decimal(10, 8)
+  end_chainage                                     Decimal?     @db.Decimal(10, 8)
+  chainage                                         Json         @db.Json
+  point_latitude                                   Decimal?     @db.Decimal(10, 8)
+  point_longitude                                  Decimal?     @db.Decimal(11, 8)
+  point_chainage                                   Decimal?     @db.Decimal(10, 8)
+  current_lane_number                              Int?
+  end_lane_number                                  Int?
+  is_deleted                                       Boolean?
+  created_by                                       Int?
+  created_at                                       DateTime?    @db.Timestamptz(6)
+  updated_by                                       Int?
+  updated_at                                       DateTime?    @db.Timestamptz(6)
+  user_master_ucc_location_created_byTouser_master user_master? @relation("ucc_location_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_ucc_location_updated_byTouser_master user_master? @relation("ucc_location_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model ucc_nh_details {
+  id             Int              @id @default(autoincrement())
+  nh_number      String?          @db.VarChar(10)
+  start_chainage Decimal?         @db.Decimal
+  end_chainage   Decimal?         @db.Decimal
+  length         Decimal?         @db.Decimal
+  status         String           @db.VarChar
+  ucc_id         Int
+  created_by     Int
+  created_at     DateTime         @db.Timestamp(6)
+  updated_by     Int?
+  updated_at     DateTime?        @db.Timestamp(6)
+  ucc_change_log ucc_change_log[]
+
+  @@schema("tenant_nhai")
+}
+
+model ucc_nh_state_details {
+  id                Int              @id @default(autoincrement())
+  state_id          Int?
+  district_id       Int[]
+  nh_state_distance Int?
+  ucc_id            Int?
+  updated_at        DateTime?        @db.Timestamp(6)
+  updated_by        Int?
+  created_at        DateTime         @db.Timestamp(6)
+  created_by        Int
+  ucc_change_log    ucc_change_log[]
+  ml_states         ml_states?       @relation(fields: [state_id], references: [state_id], onDelete: NoAction, onUpdate: NoAction)
+  ucc_master        ucc_master?      @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model ucc_piu {
+  id                                          Int              @id @default(autoincrement())
+  ucc_id                                      Int
+  piu_id                                      Int
+  created_by                                  Int?
+  created_at                                  DateTime         @default(now()) @db.Timestamp(6)
+  updated_by                                  Int?
+  updated_at                                  DateTime         @default(now()) @db.Timestamp(6)
+  user_master_ucc_piu_created_byTouser_master user_master?     @relation("ucc_piu_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  or_office_master                            or_office_master @relation(fields: [piu_id], references: [office_id], onDelete: NoAction, onUpdate: NoAction)
+  ucc_master                                  ucc_master       @relation(fields: [ucc_id], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_ucc_piu_updated_byTouser_master user_master?     @relation("ucc_piu_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model ucc_type_of_work_location {
+  id                                                                Int                      @id(map: "type_of_work_location_pkey") @default(autoincrement())
+  startlatitude                                                     Decimal?                 @db.Decimal(9, 6)
+  startlongitude                                                    Decimal?                 @db.Decimal(9, 6)
+  endlatitude                                                       Decimal?                 @db.Decimal(9, 6)
+  endlongitude                                                      Decimal?                 @db.Decimal(9, 6)
+  start_distance_km                                                 Int?
+  start_distance_metre                                              Int?
+  lane                                                              Int?
+  ucc                                                               Int?
+  type_of_work                                                      Int
+  end_distance_km                                                   Int?
+  end_distance_metre                                                Int?
+  type_of_issue                                                     String?                  @db.VarChar
+  status                                                            Int
+  user_id                                                           Int
+  geom                                                              Unsupported("geometry")?
+  ucc_change_log                                                    ucc_change_log[]
+  type_of_work_ucc_type_of_work_location_type_of_workTotype_of_work type_of_work             @relation("ucc_type_of_work_location_type_of_workTotype_of_work", fields: [type_of_work], references: [ID], onDelete: NoAction, onUpdate: NoAction)
+  ucc_master                                                        ucc_master?              @relation(fields: [ucc], references: [ucc_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master                                                       user_master              @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model ucc_user_mappings {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  ucc_id     String    @db.VarChar
+  remarks    String?   @db.VarChar
+  status     String    @db.VarChar
+  created_by String?   @db.VarChar(255)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_by String?   @db.VarChar(255)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+
+  @@schema("tenant_nhai")
+}
+
+model us_otp_verification {
+  otp_id                     String      @id @db.VarChar(255)
+  user_id                    Int
+  otp_sent_timestamp         DateTime    @db.Timestamp(6)
+  us_otp_verification_status String      @db.VarChar(50)
+  otp_expiration             DateTime    @db.Timestamp(6)
+  us_otp_verification_method String?     @db.VarChar(50)
+  otp_attempt_count          Int?        @default(0)
+  is_deleted                 Boolean?    @default(false)
+  created_by                 Int?
+  created_at                 DateTime?   @default(now()) @db.Timestamp(6)
+  updated_by                 Int?
+  updated_at                 DateTime?   @default(now()) @db.Timestamp(6)
+  otp_hash                   String?     @db.VarChar(256)
+  user_master                user_master @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model us_registration_invitation {
+  invitation_id                                                       Int          @id @default(autoincrement())
+  org_id                                                              Int
+  user_id                                                             Int
+  invitation_link                                                     String
+  short_url                                                           String?
+  invitation_status                                                   String       @db.VarChar(50)
+  invite_message                                                      String?
+  invite_to                                                           String?      @db.VarChar
+  invite_cc                                                           String?      @db.VarChar
+  invite_bcc                                                          String?      @db.VarChar
+  invite_details                                                      Json?        @db.Json
+  invite_sent_on                                                      DateTime?    @db.Timestamp(6)
+  invite_attachment                                                   String?      @db.VarChar
+  expiry_date                                                         DateTime?    @db.Timestamp(6)
+  created_by                                                          Int
+  created_date                                                        DateTime     @default(now()) @db.Timestamp(6)
+  last_updated_by                                                     Int?
+  last_updated_date                                                   DateTime?    @db.Timestamp(6)
+  is_active                                                           Boolean      @default(true)
+  unique_invitation_id                                                String?      @db.Uuid
+  invite_accepted_on                                                  DateTime?    @db.Timestamp(6)
+  user_master_us_registration_invitation_created_byTouser_master      user_master  @relation("us_registration_invitation_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_us_registration_invitation_last_updated_byTouser_master user_master? @relation("us_registration_invitation_last_updated_byTouser_master", fields: [last_updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_us_registration_invitation_user_idTouser_master         user_master  @relation("us_registration_invitation_user_idTouser_master", fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model user_change_log {
+  id           Int       @id @default(autoincrement())
+  user_id      Int
+  change_field String    @db.VarChar(255)
+  old_value    String?   @db.VarChar(255)
+  new_value    String?   @db.VarChar(255)
+  created_by   Int
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+
+  @@schema("tenant_nhai")
+}
+
+model work_rectification_mapping {
+  id               Int @id @default(autoincrement())
+  work_type_id     Int
+  rectification_id Int
+
+  @@schema("tenant_nhai")
+}
+
+model zz_event_log {
+  event_history_id Int          @id(map: "event_log_history_pkey") @default(autoincrement())
+  event_id         BigInt?
+  event_type       String?      @db.VarChar(50)
+  event_timestamp  DateTime?    @db.Timestamp(6)
+  user_id          Int?
+  ip_address       String?      @db.VarChar(45)
+  device_info      String?      @db.VarChar(255)
+  event_status     String?      @db.VarChar(20)
+  event_details    Json?        @db.Json
+  created_at       DateTime?    @db.Timestamp(6)
+  created_by       String?      @db.VarChar(100)
+  updated_at       DateTime?    @db.Timestamp(6)
+  updated_by       String?      @db.VarChar(100)
+  user_master      user_master? @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "event_log_history_user_id_fkey")
+
+  @@schema("tenant_nhai")
+}
+
+model zz_ucc_piu_logs {
+  id                                                  Int         @id @default(autoincrement())
+  ucc_id                                              Int
+  piu_id                                              Int
+  created_by                                          Int
+  created_at                                          DateTime    @default(now()) @db.Timestamp(6)
+  updated_by                                          Int
+  updated_at                                          DateTime    @default(now()) @db.Timestamp(6)
+  user_master_zz_ucc_piu_logs_created_byTouser_master user_master @relation("zz_ucc_piu_logs_created_byTouser_master", fields: [created_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+  user_master_zz_ucc_piu_logs_updated_byTouser_master user_master @relation("zz_ucc_piu_logs_updated_byTouser_master", fields: [updated_by], references: [user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("tenant_nhai")
+}
+
+model zz_ucc_user_mapping {
+  id         Int       @id(map: "ucc_user_mapping_timeline_pkey") @default(autoincrement())
+  user_id    Int?
+  ucc_id     Int?
+  remarks    String?
+  status     String?   @db.VarChar(50)
+  created_by String?   @db.VarChar(255)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_by String?   @db.VarChar(255)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+
+  @@schema("tenant_nhai")
+}
+
 enum common_login_method {
   OTP
   Email
@@ -842,24 +1672,6 @@ enum common_login_status {
 
   @@map("login_status")
   @@schema("common")
-}
-
-enum public_login_method {
-  OTP
-  Email
-  Password
-  Biometric
-
-  @@map("login_method")
-  @@schema("public")
-}
-
-enum public_login_status {
-  Success
-  Failed
-
-  @@map("login_status")
-  @@schema("public")
 }
 
 enum tenant_nhai_login_method {
