@@ -64,7 +64,7 @@ export const getInspectionDetails = async (req, res) => {
     const itemId = req.query?.item;
     const layerId = req.query?.layer;
 
-    if (!categoryId || !subCategoryId || !itemId || !layerId) {
+    if (!categoryId || !subCategoryId || !itemId || !layerId) { 
         const categoryQueryResult = await prisma.rfi_category.findMany({
             select: {
               id: true,
@@ -83,7 +83,7 @@ export const getInspectionDetails = async (req, res) => {
     }
 
     if (categoryId && subCategoryId){
-        
+
     }
 
 
