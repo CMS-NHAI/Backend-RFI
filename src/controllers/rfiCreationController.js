@@ -207,12 +207,7 @@ export const getRfiItem = async (req, res) => {
         },
       },
     },
-    distinct: ['item_id'],
-    orderBy: {
-      item: {
-        item_name: 'asc',
-      },
-    },
+    distinct: ['item_id']
   });
 
   return res.status(STATUS_CODES.OK).json({
