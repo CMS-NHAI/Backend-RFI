@@ -210,7 +210,7 @@ export const getRfiItem = async (req, res) => {
     },
     distinct: ['item_id'],
     orderBy: {
-      item: {
+      rfi_item: {
         item_name: 'asc',
       },
     },
