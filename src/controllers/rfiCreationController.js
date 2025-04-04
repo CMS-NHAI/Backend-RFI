@@ -110,8 +110,8 @@ export const getRfiCatSubCattemLayer = async (req, res) => {
 export const getRfiSubCategory = async (req, res) => {
 
   const categoryId = req.query?.cat;
-  console.log("bhawesh>>>>>>>>>>>", categoryId)
 
+  /*
   const subcategories = await prisma.rfi_catsubcat_itemlayer_association.findMany({
     where: {
       category_id: Number(categoryId),
@@ -130,7 +130,7 @@ export const getRfiSubCategory = async (req, res) => {
  /* const flatSubcategories = subcategories.map((sub) => ({
     subcategory_id: sub.subcategory_id,
     subcategory_name: sub.rfi_subcategories?.subcategory_name,
-  })); */
+  })); 
 
   const flatSubcategories = Array.from(
     new Map(
@@ -143,18 +143,57 @@ export const getRfiSubCategory = async (req, res) => {
       ])
     ).values()
   );
-
+  */
+  const subcategories = await prisma.rfi_catsubcat_itemlayer_association.findMany({
+    where: {
+      category_id: Number(categoryId),
+    },
+    select: {
+      subcategory_id: true,
+      rfi_subcategories: {
+        select: {
+          subcategory_name: true,
+        },
+      },
+    },
+  });
+  
+  // Flatten the results
+  const flatSubcategoriesRaw = subcategories.map((sub) => ({
+    subcategory_id: sub.subcategory_id,
+    subcategory_name: sub.rfi_subcategories?.subcategory_name,
+  }));
+  
+  // Use a Set to ensure uniqueness by both id and name
+  const seen = new Set();
+  const flatSubcategoriesUnique = flatSubcategoriesRaw.filter((sub) => {
+    const key = `${sub.subcategory_id}-${sub.subcategory_name}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  
+  // Sort by subcategory_name
+  flatSubcategoriesUnique.sort((a, b) =>
+    a.subcategory_name.localeCompare(b.subcategory_name)
+  );
+  
   return res.status(STATUS_CODES.OK).json({
     success: true,
     status: STATUS_CODES.OK,
     message: 'Subcategory records retrieved successfully',
-    data: {flatSubcategories}
+    data: {flatSubcategoriesUnique}
   });
 
 
 }
 
 
+export const getRfiItem = async (req, res) => {
+  const itemId = req.query?.item;
+
+
+}
 
 
 export const getChainageDetails = async (req, res) => {
