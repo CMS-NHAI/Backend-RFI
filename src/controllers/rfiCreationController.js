@@ -200,10 +200,10 @@ export const getRfiItem = async (req, res) => {
       subcategory_id: Number(subCategoryId),
     },
     select: {
-      item_id: true,
+      
      rfi_item: {
         select: {
-          
+          item_id: true,
           item_name: true,
         },
       },
