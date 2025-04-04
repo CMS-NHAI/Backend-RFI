@@ -127,11 +127,16 @@ export const getRfiSubCategory = async (req, res) => {
     },
   });
 
+  const flatSubcategories = subcategories.map((sub) => ({
+    subcategory_id: sub.subcategory_id,
+    subcategory_name: sub.rfi_subcategories?.subcategory_name,
+  }));
+
   return res.status(STATUS_CODES.OK).json({
     success: true,
     status: STATUS_CODES.OK,
     message: 'Subcategory records retrieved successfully',
-    data: {subcategories}
+    data: {flatSubcategories}
   });
 
 
