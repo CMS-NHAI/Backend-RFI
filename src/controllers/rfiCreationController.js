@@ -216,11 +216,16 @@ export const getRfiItem = async (req, res) => {
     },
   });
 
+  const flattenedResults = results.map(({ item_id, rfi_item }) => ({
+    item_id,
+    item_name: rfi_item?.item_name || null,
+  }));
+
   return res.status(STATUS_CODES.OK).json({
     success: true,
     status: STATUS_CODES.OK,
     message: 'Inspection Item records retrieved successfully',
-    data: {results}
+    data: {flattenedResults}
   });
 
 
