@@ -200,14 +200,20 @@ export const getRfiItem = async (req, res) => {
       subcategory_id: Number(subCategoryId),
     },
     select: {
-      item: {
+      item_id: true,
+     rfi_item: {
         select: {
-          id: true,
+          
           item_name: true,
         },
       },
     },
-    distinct: ['item_id']
+    distinct: ['item_id'],
+    orderBy: {
+      item: {
+        item_name: 'asc',
+      },
+    },
   });
 
   return res.status(STATUS_CODES.OK).json({
