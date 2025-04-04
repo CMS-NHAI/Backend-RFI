@@ -118,7 +118,7 @@ export const getRfiSubCategory = async (req, res) => {
     },
     select: {
       subcategory_id: true,
-      subcategory_name: true,
+      
       rfi_subcategories: {
         select: {
           subcategory_name: true,
