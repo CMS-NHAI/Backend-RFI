@@ -125,6 +125,13 @@ export const getRfiSubCategory = async (req, res) => {
     },
   });
 
+  return res.status(STATUS_CODES.OK).json({
+    success: true,
+    status: STATUS_CODES.OK,
+    message: 'Category records retrieved successfully',
+    data: { subcategories }
+  });
+
 
 }
 
