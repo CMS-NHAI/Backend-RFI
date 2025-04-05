@@ -228,6 +228,8 @@ for (const result of results) {
   }
 }
 
+flattenedItems.sort((a, b) => a.item_name.localeCompare(b.item_name, undefined, { sensitivity: 'base' }));
+
   return res.status(STATUS_CODES.OK).json({
     success: true,
     status: STATUS_CODES.OK,
