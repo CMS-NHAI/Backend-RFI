@@ -228,6 +228,8 @@ for (const result of results) {
   }
 }
 
+flattenedItems.sort((a, b) => a.item_name.localeCompare(b.item_name, undefined, { sensitivity: 'base' }));
+
   return res.status(STATUS_CODES.OK).json({
     success: true,
     status: STATUS_CODES.OK,
@@ -259,11 +261,31 @@ export const getRfiLayer = async (req, res) => {
     },
   });
 
+  // Flatten + ensure uniqueness
+const uniqueSet = new Set();
+const flattenedLayers = [];
+
+for (const row of result) {
+  const key = `${row.layer_id}-${row.rfi_layer.layer_name}`;
+  if (!uniqueSet.has(key)) {
+    uniqueSet.add(key);
+    flattenedLayers.push({
+      id: row.layer_id,
+      layer_name: row.rfi_layer.layer_name
+    });
+  }
+}
+
+// Sort by layer_name (case-insensitive)
+flattenedLayers.sort((a, b) =>
+  a.layer_name.localeCompare(b.layer_name, undefined, { sensitivity: 'base' })
+);
+
   return res.status(STATUS_CODES.OK).json({
     success: true,
     status: STATUS_CODES.OK,
     message: 'Inspection Layer records retrieved successfully',
-    data: {result}
+    data: {flattenedLayers}
   });
 
 }
