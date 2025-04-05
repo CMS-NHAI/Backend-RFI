@@ -232,7 +232,7 @@ for (const result of results) {
     success: true,
     status: STATUS_CODES.OK,
     message: 'Inspection Item records retrieved successfully',
-    data: {flattenedResults}
+    data: {flattenedItems}
   });
 
 
