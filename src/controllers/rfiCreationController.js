@@ -237,26 +237,20 @@ export const getRfiLayer = async (req, res) => {
 
   const result = await prisma.rfi_catsubcat_itemlayer_association.findMany({
     where: {
-      category_id: 3,
-      subcategory_id: 50,
-      item_id: 1
+      category_id: Number(categoryId),
+      subcategory_id: Number(subCategoryId),
+      item_id: Number(subItemId)
     },
     select: {
       layer_id: true,
       rfi_layer: {
         select: {
-          layer_name: true,
-          id: true
+          layer_name: true
         }
       }
     },
-    distinct: ['layer_id'],
-    orderBy: {
-      rfi_layer: {
-        layer_name: 'asc'
-      }
-    }
   });
+
   return res.status(STATUS_CODES.OK).json({
     success: true,
     status: STATUS_CODES.OK,
