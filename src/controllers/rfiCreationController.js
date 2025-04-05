@@ -206,19 +206,27 @@ export const getRfiItem = async (req, res) => {
           item_name: true,
         },
       },
-    },
-    distinct: ['item_id'],
-    orderBy: {
-      rfi_item: {
-        item_name: 'asc',
-      },
-    },
+    }
   });
 
-  const flattenedResults = results.map(({ item_id, rfi_item }) => ({
+  /* const flattenedResults = results.map(({ item_id, rfi_item }) => ({
     item_id,
     item_name: rfi_item?.item_name || null,
-  }));
+  })); */
+
+const uniqueItemsSet = new Set();
+const flattenedItems = [];
+
+for (const result of results) {
+  const key = `${result.item_id}-${result.rfi_item.item_name}`;
+  if (!uniqueItemsSet.has(key)) {
+    uniqueItemsSet.add(key);
+    flattenedItems.push({
+      id: result.item_id,
+      item_name: result.rfi_item.item_name,
+    });
+  }
+}
 
   return res.status(STATUS_CODES.OK).json({
     success: true,
